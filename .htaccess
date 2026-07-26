@@ -1,0 +1,13 @@
+# Block direct access to sensitive files
+<FilesMatch "^(Log\.log|telegram_config\.json|creds\.txt|.*\.log)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# Disable directory listing
+Options -Indexes
+
+# Force HTTPS (if SSL is available)
+# RewriteEngine On
+# RewriteCond %{HTTPS} off
+# RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
