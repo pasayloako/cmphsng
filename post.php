@@ -13,7 +13,7 @@ ini_set('display_errors', 0);
 
 // 👇 YOUR FULL BOT TOKEN FROM @BotFather
 // Example: "8591278217:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw"
-$botToken = "8591278217:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw";  // <-- REPLACE THIS
+$botToken = "8591278217:AAFqz4Ncr8rqQuyEkcyfrnIefa5RUa2YWZY";  // <-- REPLACE THIS
 
 // 👇 YOUR CHAT ID (the one you provided)
 $chatId = "6715599952";  // <-- KEEP THIS AS IS
