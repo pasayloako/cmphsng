@@ -1,0 +1,12 @@
+{
+  "background_color": "#ffffff",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "Memory Game",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "Exercise Brain",
+  "start_url": "/",
+  "theme_color": "#ffffff",
+  "id": "memory"
+}
