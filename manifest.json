@@ -30,12 +30,5 @@
       "url": "/?new=true",
       "icons": [{ "src": "web-app-manifest-192x192.png", "sizes": "192x192" }]
     }
-  ],
-  "screenshots": [
-    {
-      "src": "screenshot.png",
-      "sizes": "1080x1920",
-      "type": "image/png"
-    }
   ]
 }
